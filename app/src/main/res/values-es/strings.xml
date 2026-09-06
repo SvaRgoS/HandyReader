@@ -984,4 +984,19 @@
     <string name="global_label">Global</string>
     <string name="per_book_label">Este libro</string>
     <string name="invert_page_turn">Invertir dirección de cambio de página</string>
+    <!-- Barra de información de lectura -->
+    <string name="reader_info_bar">Barra de información de lectura</string>
+    <string name="reader_info_bar_header">Barra superior</string>
+    <string name="reader_info_bar_footer">Barra inferior</string>
+    <string name="reader_info_bar_slot_left">Izquierda</string>
+    <string name="reader_info_bar_slot_middle">Centro</string>
+    <string name="reader_info_bar_slot_right">Derecha</string>
+    <string name="reader_info_bar_none">Ninguno</string>
+    <string name="reader_info_bar_chapter_title">Título del capítulo</string>
+    <string name="reader_info_bar_time">Hora</string>
+    <string name="reader_info_bar_battery">Batería</string>
+    <string name="reader_info_bar_page">Página del capítulo</string>
+    <string name="reader_info_bar_total_progress">Progreso total</string>
+    <string name="reader_info_bar_page_and_total">Página · Progreso</string>
+    <string name="reader_info_bar_book_name">Título del libro</string>
 </resources>

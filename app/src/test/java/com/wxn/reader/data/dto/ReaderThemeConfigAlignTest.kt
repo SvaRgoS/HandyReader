@@ -9,6 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * v11 对齐字段纳入 reader_theme_configs 归档后的 mapper + differsFrom 单元测试（见设计方案 §二.0）。
@@ -21,6 +22,7 @@ import org.robolectric.RobolectricTestRunner
  * - Round-trip：saveCurrent → loadTarget 对齐值不被篡改
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])  // Robolectric 4.14.1 最高支持 SDK 34；compileSdk=36 需显式锁定（同 bookread 既有做法）
 class ReaderThemeConfigAlignTest {
 
     private fun basePrefs(): ReaderPreferences = ReaderPreferencesUtil.defaultPreferences.copy(

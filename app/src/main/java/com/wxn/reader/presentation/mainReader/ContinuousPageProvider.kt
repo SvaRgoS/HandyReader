@@ -323,6 +323,7 @@ class ContinuousPageProvider(
      * @param globalPageIndex 全局页面索引 (跨章节)
      * @param chapterIndex 所属章节索引
      * @param pageIndex 章节内页面索引
+     * @param chapterPageSize 所属章节总页数（信息条"本章页码 x/y"数据源）
      * @param page 页面数据
      * @param chapterTitle 章节标题
      */
@@ -330,6 +331,7 @@ class ContinuousPageProvider(
         val globalPageIndex: Int,
         val chapterIndex: Int,
         val pageIndex: Int,
+        val chapterPageSize: Int,
         val page: TextPage,
         val chapterTitle: String,
         val isChapterStart: Boolean = false,  // 是否是章节的第一页
@@ -811,6 +813,7 @@ class ContinuousPageProvider(
                             globalPageIndex = globalIndex,
                             chapterIndex = chapterIdx,
                             pageIndex = pageIdx,
+                            chapterPageSize = chapter.pages.size,
                             page = page,
                             chapterTitle = chapter.title,
                             isChapterStart = pageIdx == 0,

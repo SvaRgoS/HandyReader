@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * per-book 全量快照 mapper 单元测试（v12 起）。
@@ -21,6 +22,7 @@ import org.robolectric.RobolectricTestRunner
  * 使用 Robolectric：[ReaderPreferences] 依赖 `android.graphics.Color`。
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])  // Robolectric 4.14.1 最高支持 SDK 34；compileSdk=36 需显式锁定（同 bookread 既有做法）
 class PerBookOverrideMapperTest {
 
     private fun baseline(): ReaderPreferences = ReaderPreferencesUtil.defaultPreferences.copy(

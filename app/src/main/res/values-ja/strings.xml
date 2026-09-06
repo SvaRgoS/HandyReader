@@ -985,4 +985,19 @@
     <string name="global_label">共通</string>
     <string name="per_book_label">この本</string>
     <string name="invert_page_turn">ページめくり方向を反転</string>
+    <!-- 読書情報バー -->
+    <string name="reader_info_bar">読書情報バー</string>
+    <string name="reader_info_bar_header">上部バー</string>
+    <string name="reader_info_bar_footer">下部バー</string>
+    <string name="reader_info_bar_slot_left">左</string>
+    <string name="reader_info_bar_slot_middle">中央</string>
+    <string name="reader_info_bar_slot_right">右</string>
+    <string name="reader_info_bar_none">なし</string>
+    <string name="reader_info_bar_chapter_title">章タイトル</string>
+    <string name="reader_info_bar_time">時刻</string>
+    <string name="reader_info_bar_battery">バッテリー</string>
+    <string name="reader_info_bar_page">章内ページ</string>
+    <string name="reader_info_bar_total_progress">全体進捗</string>
+    <string name="reader_info_bar_page_and_total">ページ · 進捗</string>
+    <string name="reader_info_bar_book_name">書籍名</string>
 </resources>

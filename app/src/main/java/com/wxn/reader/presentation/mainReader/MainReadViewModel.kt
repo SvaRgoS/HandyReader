@@ -24,6 +24,7 @@ import com.wxn.base.bean.TTSEngineType
 import com.wxn.base.bean.TtsConfig
 import com.wxn.base.bean.TtsPlaybackStatus
 import com.wxn.base.exception.NotTextFileException
+import com.wxn.base.ext.statusBarHeight
 import com.wxn.base.ext.toStringColor
 import com.wxn.base.ext.sysIsDarkMode
 import com.wxn.base.util.BrightnessHelper
@@ -34,6 +35,10 @@ import com.wxn.base.util.launchIO
 import com.wxn.base.util.launchMain
 import com.wxn.bookparser.BookParserEngine
 import com.wxn.bookparser.TextParser
+import com.wxn.bookread.data.model.InfoBarSlots
+import com.wxn.bookread.data.model.InfoBarSpec
+import com.wxn.bookread.data.model.config.ConfigReadingProgression
+import com.wxn.bookread.data.model.preference.ReadTipPreferences
 import com.wxn.bookread.data.model.preference.ReaderPreferences
 import com.wxn.bookread.data.model.preference.TranslatorPreferences
 import com.wxn.bookread.data.model.preference.TtsPreferences
@@ -935,6 +940,21 @@ class MainReadViewModel @Inject constructor(
     private val _curChapterName = MutableStateFlow<String>("")
     val curChapterName: StateFlow<String> = _curChapterName.asStateFlow()
 
+    // ==== 阅读信息条（ReadTip，全局配置，不参与 per-book 覆盖）====
+    private val _readTipPreferences = MutableStateFlow<ReadTipPreferences?>(null)
+    val readTipPreferences: StateFlow<ReadTipPreferences?> = _readTipPreferences.asStateFlow()
+
+    /** 翻页模式页码状态：index 为 0 基（展示时 +1）；滚动模式不消费该状态（页码槽降级为总进度） */
+    data class InfoBarPage(val index0Based: Int, val pageSize: Int)
+    private val _infoBarPage = MutableStateFlow<InfoBarPage?>(null)
+    val infoBarPage: StateFlow<InfoBarPage?> = _infoBarPage.asStateFlow()
+
+    /** 滚动模式最近一次页码缓存：refreshInfoBarPage 在滚动模式下重放（见其注释） */
+    private var lastScrollInfoBarPage: InfoBarPage? = null
+
+    @Volatile
+    private var lastAppliedInfoBarReserve = 0
+
     private val _outHref = MutableStateFlow<String>("")
     val outHref: StateFlow<String> = _outHref.asStateFlow()
     private val _showOutHrefDialog = MutableStateFlow(false)
@@ -1227,6 +1247,11 @@ class MainReadViewModel @Inject constructor(
 
             val isInvertPageTurnChange = oldPref.invertPageTurn != newPref.invertPageTurn
 
+            // 信息条预留字段先行写入（review R2-S6）：预留仅依赖 scroll 与 tip，
+            // tip 不变时非 scroll 字段不改变预留值；isLayoutChange 的 updatePageViews
+            // 经 upStyle→upVisibleSize 读取新值，单次重排同时生效（消除双重重排与预留滞留）。
+            _readTipPreferences.value?.let { applyInfoBarReserve(it, skipRelayout = true) }
+
             val isBgOnlyChange =
                 (oldPref.backgroundColor != newPref.backgroundColor ||
                 oldPref.backgroundImage != newPref.backgroundImage) && !isLayoutChange
@@ -1240,6 +1265,9 @@ class MainReadViewModel @Inject constructor(
                 // 变化时不触发任何 pageController 刷新。
                 else -> Logger.d("applyReaderPreferences: non-layout/non-bg field changed, skip pageController refresh")
             }
+
+            // 信息条页码状态随排版变化刷新（轻量，不重排）
+            refreshInfoBarPage()
         }
 
         // 活跃主题 * 号实时派生（写者职责：active 分支的唯一写者）。
@@ -1294,6 +1322,16 @@ class MainReadViewModel @Inject constructor(
             // 冷启动时序（R2 ❼）：effective 流首启要等 currentBookId emit 非 null + meta 查询返回，
             // 中间窗口 _readerPreferences 保持初始值 defaultPreferences；pageController 此时已初始化。
             effectiveReaderPrefsFlow.collect { pref -> applyReaderPreferences(pref) }
+        }
+
+        viewModelScope.launch {
+            // 阅读信息条（ReadTip）配置流：独立 DataStore，与排版偏好互不影响。
+            // 预留变化的重排由 applyInfoBarReserve 内部判定（仅在值变化且书已加载时显式触发）。
+            readerTipPrefsUtil.readTIpPreferencesFlow.collect { tip ->
+                _readTipPreferences.value = tip
+                refreshInfoBarPage()
+                applyInfoBarReserve(tip)
+            }
         }
 
         // ★ v11 per-book：单一 meta 数据源喂缓存（R2 ❸）——effective 流与 _perBookMeta 共享同一 perBookMetaFlow。
@@ -1869,6 +1907,7 @@ class MainReadViewModel @Inject constructor(
             _isBookmarked.value =
                 (curChapter.pages.getOrNull(pageController.durPageIndex)?.bookmarkId ?: -1) > 0
             _enableTts.value = !pageController.currentPage()?.text.isNullOrEmpty()
+            refreshInfoBarPage()
         }
 
         val isLastPage = if (curChapter != null) {
@@ -2936,6 +2975,99 @@ class MainReadViewModel @Inject constructor(
     fun updateKeepScreenOn(isKeepScreenOn:Boolean) {
         viewModelScope.launch {
             readerPrefsUtil.updateKeepScreenOn(isKeepScreenOn)
+        }
+    }
+
+    // ==== 阅读信息条（ReadTip）====
+
+    /**
+     * 计算信息条排版预留并写入 ChapterProvider；仅当值变化且书已加载完成时
+     * 显式触发一次重排（与 isLayoutChange 同路径，resetPageOffset=false 保留阅读位置）。
+     *
+     * [skipRelayout]：applyReaderPreferences 已有/将有 updatePageViews 的调用方传 true——
+     * 该次重排的 upStyle→upVisibleSize 会读到刚写入的新预留值，避免双重重排。
+     *
+     * 信息条为全局配置，不走 per-book override。
+     */
+    private fun applyInfoBarReserve(tip: ReadTipPreferences, skipRelayout: Boolean = false) {
+        val isScrollMode = _readerPreferences.value.scroll == 6
+        val headerEnabled = InfoBarSpec.isEnabled(
+            tip.hideHeader,
+            InfoBarSlots(tip.tipHeaderLeft, tip.tipHeaderMiddle, tip.tipHeaderRight)
+        )
+        val footerEnabled = InfoBarSpec.isEnabled(
+            tip.hideFooter,
+            InfoBarSlots(tip.tipFooterLeft, tip.tipFooterMiddle, tip.tipFooterRight)
+        )
+        val reserve = InfoBarSpec.computeReservePx(
+            density = context.resources.displayMetrics.density,
+            statusBarHeightPx = context.statusBarHeight,
+            headerEnabled = headerEnabled,
+            footerEnabled = footerEnabled,
+            isScrollMode = isScrollMode,
+        )
+        val changed = reserve != lastAppliedInfoBarReserve
+        ChapterProvider.infoBarReservePx = reserve
+        if (changed && !skipRelayout && pageController.isInitFinish) {
+            viewModelScope.launch {
+                pageController.updatePageViews(resetPageOffset = false)
+            }
+        }
+    }
+
+    /** 刷新信息条页码状态：翻页模式取自 pageController；滚动模式重放最近一次滚动页码 */
+    fun refreshInfoBarPage() {
+        if (_readerPreferences.value.scroll == 6) {
+            // 滚动模式页码由 ScrollSnapshot 采集器经 updateInfoBarPageFromScroll 喂数；
+            // 此处重放缓存而非清空：非排版偏好变更不会触发采集器重发，清空会永久空缺
+            _infoBarPage.value = lastScrollInfoBarPage
+            return
+        }
+        val chapter = pageController.curTextChapter ?: run {
+            _infoBarPage.value = null
+            return
+        }
+        // pageSize<=0（章节分页未就绪）时置 null，页码槽隐藏而非显示 "x/0"
+        _infoBarPage.value = chapter.pageSize.takeIf { it > 0 }?.let {
+            InfoBarPage(index0Based = pageController.durPageIndex, pageSize = it)
+        }
+    }
+
+    /** 滚动模式页码写入（ScrollSnapshot 采集器调用；原始类型参数，VM 不依赖 ContinuousPageProvider） */
+    fun updateInfoBarPageFromScroll(pageIndex0Based: Int, chapterPageSize: Int) {
+        if (_readerPreferences.value.scroll != 6) return
+        val value = if (pageIndex0Based >= 0 && chapterPageSize > 0) {
+            InfoBarPage(index0Based = pageIndex0Based, pageSize = chapterPageSize)
+        } else {
+            null
+        }
+        lastScrollInfoBarPage = value
+        _infoBarPage.value = value
+    }
+
+    /** 信息条槽位镜像判断：RTL 阅读方向（readingProgression）时左右互换 */
+    fun isRtlReadingProgression(): Boolean =
+        _readerPreferences.value.readingProgression == ConfigReadingProgression.RTL
+
+    /** 信息条书名槽的数据源 */
+    fun currentBookTitle(): String? = _book.value?.title
+
+    // ==== 信息条设置写入（设置面板调用）====
+    fun updateInfoBarConfig(
+        hideHeader: Boolean, hideFooter: Boolean,
+        headerSlots: InfoBarSlots, footerSlots: InfoBarSlots,
+    ) {
+        viewModelScope.launch {
+            readerTipPrefsUtil.updateInfoBarConfig(
+                hideHeader = hideHeader,
+                hideFooter = hideFooter,
+                tipHeaderLeft = headerSlots.left,
+                tipHeaderMiddle = headerSlots.middle,
+                tipHeaderRight = headerSlots.right,
+                tipFooterLeft = footerSlots.left,
+                tipFooterMiddle = footerSlots.middle,
+                tipFooterRight = footerSlots.right,
+            )
         }
     }
 

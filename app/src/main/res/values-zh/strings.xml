@@ -985,4 +985,19 @@
     <string name="global_label">全局</string>
     <string name="per_book_label">本书</string>
     <string name="invert_page_turn">反转翻页方向</string>
+    <!-- 阅读信息条 -->
+    <string name="reader_info_bar">阅读信息条</string>
+    <string name="reader_info_bar_header">顶部信息条</string>
+    <string name="reader_info_bar_footer">底部信息条</string>
+    <string name="reader_info_bar_slot_left">左侧</string>
+    <string name="reader_info_bar_slot_middle">中间</string>
+    <string name="reader_info_bar_slot_right">右侧</string>
+    <string name="reader_info_bar_none">无</string>
+    <string name="reader_info_bar_chapter_title">章节名</string>
+    <string name="reader_info_bar_time">时间</string>
+    <string name="reader_info_bar_battery">电量</string>
+    <string name="reader_info_bar_page">本章页码</string>
+    <string name="reader_info_bar_total_progress">总进度</string>
+    <string name="reader_info_bar_page_and_total">页码 · 进度</string>
+    <string name="reader_info_bar_book_name">书名</string>
 </resources>

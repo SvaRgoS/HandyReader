@@ -86,6 +86,7 @@ import com.wxn.reader.presentation.bookReader.components.BatteryOptimizationDial
 import com.wxn.reader.presentation.bookReader.components.NavigationLoadingOverlay
 import com.wxn.reader.presentation.bookReader.components.ReaderGuideOverlay
 import com.wxn.reader.presentation.bookReader.components.ReaderGuideOverlay2
+import com.wxn.reader.presentation.bookReader.components.ReaderInfoBarHost
 import com.wxn.reader.presentation.bookReader.components.SearchFAB
 import com.wxn.reader.presentation.bookReader.components.SearchResultsBottomSheet
 import com.wxn.reader.presentation.bookReader.components.TextToolbar
@@ -326,6 +327,9 @@ fun ReaderView(
             } else {
                 ContinuousScrollReaderView(viewModel)
             }
+
+            // 阅读信息条（翻页/滚动两模式统一覆盖层；无 pointer 消费，点击穿透到阅读画布）
+            ReaderInfoBarHost(viewModel = viewModel)
 
             val curChapterName by viewModel.curChapterName.collectAsStateWithLifecycle()
 

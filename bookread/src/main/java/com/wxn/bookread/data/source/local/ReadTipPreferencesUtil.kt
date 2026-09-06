@@ -199,4 +199,45 @@ class ReadTipPreferencesUtil @Inject constructor(context: Context) {
         }
     }
 
+    /**
+     * 信息条专用更新：仅覆写 8 个信息条相关键（hideHeader/hideFooter + 6 槽位），
+     * 其余键由 DataStore edit 语义保证不动——严禁改回整包 updatePreferences 覆盖
+     * 同文件中的活跃字段（clickTurnPage/clickAllNext/textFullJustify/textBottomJustify）。
+     */
+    suspend fun updateInfoBarConfig(
+        hideHeader: Boolean,
+        hideFooter: Boolean,
+        tipHeaderLeft: Int,
+        tipHeaderMiddle: Int,
+        tipHeaderRight: Int,
+        tipFooterLeft: Int,
+        tipFooterMiddle: Int,
+        tipFooterRight: Int,
+    ) {
+        dataStore.edit { preference ->
+            preference[TipHeaderLeft] = tipHeaderLeft
+            preference[TipHeaderMiddle] = tipHeaderMiddle
+            preference[TipHeaderRight] = tipHeaderRight
+            preference[TipFooterLeft] = tipFooterLeft
+            preference[TipFooterMiddle] = tipFooterMiddle
+            preference[TipFooterRight] = tipFooterRight
+            preference[HideHeader] = hideHeader
+            preference[HideFooter] = hideFooter
+        }
+    }
+
+    /** 信息条恢复默认：只重置 8 个信息条相关键（顶部=时间/无/电量，底部=章节名/无/页码+进度，均隐藏） */
+    suspend fun resetInfoBarConfig() {
+        updateInfoBarConfig(
+            hideHeader = defaultReadTipPreference.hideHeader,
+            hideFooter = defaultReadTipPreference.hideFooter,
+            tipHeaderLeft = defaultReadTipPreference.tipHeaderLeft,
+            tipHeaderMiddle = defaultReadTipPreference.tipHeaderMiddle,
+            tipHeaderRight = defaultReadTipPreference.tipHeaderRight,
+            tipFooterLeft = defaultReadTipPreference.tipFooterLeft,
+            tipFooterMiddle = defaultReadTipPreference.tipFooterMiddle,
+            tipFooterRight = defaultReadTipPreference.tipFooterRight,
+        )
+    }
+
 }

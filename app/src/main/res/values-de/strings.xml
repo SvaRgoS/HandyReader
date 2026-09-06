@@ -987,4 +987,19 @@
     <string name="global_label">Global</string>
     <string name="per_book_label">Dieses Buch</string>
     <string name="invert_page_turn">Seitenumblättern umkehren</string>
+    <!-- Lesestatusleiste -->
+    <string name="reader_info_bar">Lesestatusleiste</string>
+    <string name="reader_info_bar_header">Obere Leiste</string>
+    <string name="reader_info_bar_footer">Untere Leiste</string>
+    <string name="reader_info_bar_slot_left">Links</string>
+    <string name="reader_info_bar_slot_middle">Mitte</string>
+    <string name="reader_info_bar_slot_right">Rechts</string>
+    <string name="reader_info_bar_none">Keine</string>
+    <string name="reader_info_bar_chapter_title">Kapiteltitel</string>
+    <string name="reader_info_bar_time">Uhrzeit</string>
+    <string name="reader_info_bar_battery">Akku</string>
+    <string name="reader_info_bar_page">Seitenzahl</string>
+    <string name="reader_info_bar_total_progress">Gesamtfortschritt</string>
+    <string name="reader_info_bar_page_and_total">Seite · Fortschritt</string>
+    <string name="reader_info_bar_book_name">Buchtitel</string>
 </resources>

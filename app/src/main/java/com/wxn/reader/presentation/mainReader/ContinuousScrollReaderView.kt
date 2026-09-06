@@ -84,6 +84,8 @@ import com.wxn.bookread.data.model.TextChar
 import com.wxn.bookread.data.model.TextLine
 import com.wxn.bookread.data.model.TextPage
 import com.wxn.bookread.data.model.arrayIndexAt
+import com.wxn.bookread.data.model.InfoBarSlots
+import com.wxn.bookread.data.model.InfoBarSpec
 import com.wxn.bookread.data.model.preference.ReaderPreferences
 import com.wxn.bookread.data.model.textIndexAt
 import com.wxn.bookread.data.model.visualSpan
@@ -211,6 +213,20 @@ fun ContinuousScrollReaderView(viewModel: MainReadViewModel) {
     //加载的页面集合
     val mergedPages by pageProvider.mergedPages.collectAsStateWithLifecycle()
     val showContinuousLoading by viewModel.continuousScrollLoading.collectAsStateWithLifecycle()
+
+    // 阅读信息条：底部条开启时，章节加载条上移避让（条高 + 呼吸间距，规格单一来源 InfoBarSpec）
+    val tipPrefs by viewModel.readTipPreferences.collectAsStateWithLifecycle()
+    val footerInfoBarVisible = tipPrefs?.let {
+        InfoBarSpec.isEnabled(
+            it.hideFooter,
+            InfoBarSlots(it.tipFooterLeft, it.tipFooterMiddle, it.tipFooterRight)
+        )
+    } ?: false
+    val loadingBarBottomOffset = if (footerInfoBarVisible) {
+        (InfoBarSpec.BAR_HEIGHT_DP + InfoBarSpec.RESERVE_GAP_DP).dp
+    } else {
+        0.dp
+    }
     //背景图
     val backgroundImageFile = remember(readerPreferences.backgroundImage) {
         val imgPath = readerPreferences.backgroundImage
@@ -403,7 +419,9 @@ fun ContinuousScrollReaderView(viewModel: MainReadViewModel) {
                     visible = showContinuousLoading,
                     enter = fadeIn(animationSpec = tween(200)),
                     exit = fadeOut(animationSpec = tween(200)),
-                    modifier = Modifier.align(Alignment.BottomCenter)
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = loadingBarBottomOffset)
                 ) {
                     LinearProgressIndicator(
                         modifier = Modifier.fillMaxWidth(),
@@ -539,6 +557,12 @@ fun ContinuousScrollContent(
                 val newPageIndex = currentPageItem?.pageIndex ?: -1
                 pageProvider.currentScrollGlobalIndex = snapshot.firstVisibleIndex
                 Logger.d("ContinuousScrollContent: firstVisibleIndex=${snapshot.firstVisibleIndex}, chapter=$newChapterIndex, page=$newPageIndex")
+
+                // 信息条页码槽：滚动模式实时喂数（currentPageItem 为 null 时以 -1/0 清空）
+                viewModel.updateInfoBarPageFromScroll(
+                    pageIndex0Based = newPageIndex,
+                    chapterPageSize = currentPageItem?.chapterPageSize ?: 0
+                )
 
                 if (newChapterIndex >= 0 && newPageIndex >= 0) {
                     val oldChapterIndex = pageProvider.pageController.durChapterIndex

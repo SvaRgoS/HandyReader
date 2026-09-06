@@ -984,4 +984,19 @@
     <string name="global_label">全域</string>
     <string name="per_book_label">本書</string>
     <string name="invert_page_turn">反轉翻頁方向</string>
+    <!-- 閱讀資訊列 -->
+    <string name="reader_info_bar">閱讀資訊列</string>
+    <string name="reader_info_bar_header">頂部資訊列</string>
+    <string name="reader_info_bar_footer">底部資訊列</string>
+    <string name="reader_info_bar_slot_left">左側</string>
+    <string name="reader_info_bar_slot_middle">中間</string>
+    <string name="reader_info_bar_slot_right">右側</string>
+    <string name="reader_info_bar_none">無</string>
+    <string name="reader_info_bar_chapter_title">章節名</string>
+    <string name="reader_info_bar_time">時間</string>
+    <string name="reader_info_bar_battery">電量</string>
+    <string name="reader_info_bar_page">本章頁碼</string>
+    <string name="reader_info_bar_total_progress">總進度</string>
+    <string name="reader_info_bar_page_and_total">頁碼 · 進度</string>
+    <string name="reader_info_bar_book_name">書名</string>
 </resources>

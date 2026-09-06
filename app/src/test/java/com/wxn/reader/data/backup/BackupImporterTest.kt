@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * ★ P1-4:验证 [BookSyncFailure] 数据模型从 `message:String` 改为 `errorCode:BackupErrorCode` 后的一致性。
@@ -17,6 +18,7 @@ import org.robolectric.RobolectricTestRunner
  *   此处覆盖数据模型层 + fromException 映射的契约。
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])  // Robolectric 4.14.1 最高支持 SDK 34；compileSdk=36 需显式锁定（同 bookread 既有做法）
 class BackupImporterTest {
 
     @Test

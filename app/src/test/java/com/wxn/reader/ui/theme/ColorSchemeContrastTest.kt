@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Verifies that every app color scheme satisfies WCAG AA contrast on its X / onX colour pairs,
@@ -20,6 +21,7 @@ import org.robolectric.RobolectricTestRunner
  * against the "test passes but production fails" float-rounding trap.
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])  // Robolectric 4.14.1 最高支持 SDK 34；compileSdk=36 需显式锁定（同 bookread 既有做法）
 class ColorSchemeContrastTest {
 
     private val schemes = ColorSchemeOption.entries.filter { it != ColorSchemeOption.DYNAMIC }

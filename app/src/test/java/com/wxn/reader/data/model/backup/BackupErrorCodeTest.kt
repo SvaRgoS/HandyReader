@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.io.IOException
 import java.util.zip.ZipException
 
@@ -14,6 +15,7 @@ import java.util.zip.ZipException
  *   确保非 zip 文件 / 权限丢失 / manifest 损坏等场景在 UI 正确显示 i18n 文案。
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])  // Robolectric 4.14.1 最高支持 SDK 34；compileSdk=36 需显式锁定（同 bookread 既有做法）
 class BackupErrorCodeTest {
 
     @Test

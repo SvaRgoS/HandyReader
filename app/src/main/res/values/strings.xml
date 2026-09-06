@@ -992,4 +992,19 @@
     <string name="global_label">Global</string>
     <string name="per_book_label">This book</string>
     <string name="invert_page_turn">Reverse page turn direction</string>
+    <!-- Reading info bar -->
+    <string name="reader_info_bar">Reading Info Bar</string>
+    <string name="reader_info_bar_header">Top Info Bar</string>
+    <string name="reader_info_bar_footer">Bottom Info Bar</string>
+    <string name="reader_info_bar_slot_left">Left</string>
+    <string name="reader_info_bar_slot_middle">Middle</string>
+    <string name="reader_info_bar_slot_right">Right</string>
+    <string name="reader_info_bar_none">None</string>
+    <string name="reader_info_bar_chapter_title">Chapter Title</string>
+    <string name="reader_info_bar_time">Time</string>
+    <string name="reader_info_bar_battery">Battery</string>
+    <string name="reader_info_bar_page">Chapter Page</string>
+    <string name="reader_info_bar_total_progress">Total Progress</string>
+    <string name="reader_info_bar_page_and_total">Page · Progress</string>
+    <string name="reader_info_bar_book_name">Book Title</string>
 </resources>

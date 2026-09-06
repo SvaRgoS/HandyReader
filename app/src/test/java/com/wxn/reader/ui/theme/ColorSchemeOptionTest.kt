@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Tests [ColorSchemeOption.fromPersistedKey] (migration safety) and [lerpColorScheme] endpoints.
@@ -15,6 +16,7 @@ import org.robolectric.RobolectricTestRunner
  * runtime (same reason as [ColorSchemeContrastTest]).
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])  // Robolectric 4.14.1 最高支持 SDK 34；compileSdk=36 需显式锁定（同 bookread 既有做法）
 class ColorSchemeOptionTest {
 
     @Test

@@ -97,6 +97,14 @@ object ChapterProvider {
     var paddingVertical = 0
 
     /**
+     * 阅读信息条的排版预留量（px，对称抬高 paddingVertical 的下限）。
+     * 由 app 层 MainReadViewModel 依据信息条开关与状态栏占位高度写入；
+     * 0 表示无预留。滚动模式（isVScrollMode）下不参与（paddingVertical 强制 0）。
+     */
+    @Volatile
+    var infoBarReservePx = 0
+
+    /**
      * 可视宽度,
      * 这里是排除掉了水平方向上的边距之后的页面可显示元素的宽度
      */
@@ -368,7 +376,12 @@ object ChapterProvider {
             if (prefs != null) {
                 paddingHorizontal = ((prefs.pageHorizontalMargins * 0.1 * viewWidth.toDouble()).toInt()) / 2         //页面左边距
                 paddingVertical = if (!isVScrollMode) { //非连续垂直滚动阅读模式，才会设置这个值
-                    (prefs.pageVerticalMargins * 0.1 * viewHeight.toDouble()).toInt() / 2                 //页面顶部间距
+                    // 信息条预留：对称抬高 paddingVertical 下限（不改变既有几何公式，
+                    // visibleHeight/visibleBottom 仍由 recomputeDerivedSizes 统一推导）
+                    maxOf(
+                        (prefs.pageVerticalMargins * 0.1 * viewHeight.toDouble()).toInt() / 2,                 //页面顶部间距
+                        infoBarReservePx
+                    )
                 } else {
                     0
                 }
@@ -430,6 +443,8 @@ object ChapterProvider {
             } else {
                 0
             }
+            // 信息条预留量随屏幕旋转等比缩放，与 paddingVertical 保持同一换算口径
+            infoBarReservePx = (infoBarReservePx.toFloat() * h / oldh).toInt()
         }
         recomputeDerivedSizes()
         Logger.d("ChapterProvider::synchronouslyUpdateLayout::viewWidth=$viewWidth, viewHeight=$viewHeight, visibleWidth=$visibleWidth, visibleHeight=$visibleHeight")

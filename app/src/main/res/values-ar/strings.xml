@@ -990,4 +990,19 @@
     <string name="global_label">عام</string>
     <string name="per_book_label">هذا الكتاب</string>
     <string name="invert_page_turn">عكس اتجاه تقليب الصفحات</string>
+    <!-- شريط معلومات القراءة -->
+    <string name="reader_info_bar">شريط معلومات القراءة</string>
+    <string name="reader_info_bar_header">الشريط العلوي</string>
+    <string name="reader_info_bar_footer">الشريط السفلي</string>
+    <string name="reader_info_bar_slot_left">يسار</string>
+    <string name="reader_info_bar_slot_middle">وسط</string>
+    <string name="reader_info_bar_slot_right">يمين</string>
+    <string name="reader_info_bar_none">لا شيء</string>
+    <string name="reader_info_bar_chapter_title">عنوان الفصل</string>
+    <string name="reader_info_bar_time">الوقت</string>
+    <string name="reader_info_bar_battery">البطارية</string>
+    <string name="reader_info_bar_page">صفحة الفصل</string>
+    <string name="reader_info_bar_total_progress">التقدم الكلي</string>
+    <string name="reader_info_bar_page_and_total">صفحة · تقدم</string>
+    <string name="reader_info_bar_book_name">عنوان الكتاب</string>
 </resources>

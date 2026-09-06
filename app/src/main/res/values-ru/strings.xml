@@ -987,4 +987,19 @@
     <string name="global_label">Общие</string>
     <string name="per_book_label">Эта книга</string>
     <string name="invert_page_turn">Инвертировать направление перелистывания</string>
+    <!-- Инфопанель чтения -->
+    <string name="reader_info_bar">Инфопанель чтения</string>
+    <string name="reader_info_bar_header">Верхняя панель</string>
+    <string name="reader_info_bar_footer">Нижняя панель</string>
+    <string name="reader_info_bar_slot_left">Слева</string>
+    <string name="reader_info_bar_slot_middle">Центр</string>
+    <string name="reader_info_bar_slot_right">Справа</string>
+    <string name="reader_info_bar_none">Нет</string>
+    <string name="reader_info_bar_chapter_title">Название главы</string>
+    <string name="reader_info_bar_time">Время</string>
+    <string name="reader_info_bar_battery">Батарея</string>
+    <string name="reader_info_bar_page">Страница главы</string>
+    <string name="reader_info_bar_total_progress">Общий прогресс</string>
+    <string name="reader_info_bar_page_and_total">Страница · Прогресс</string>
+    <string name="reader_info_bar_book_name">Название книги</string>
 </resources>

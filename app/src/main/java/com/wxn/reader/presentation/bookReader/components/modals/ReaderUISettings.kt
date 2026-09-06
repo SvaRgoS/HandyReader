@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.PublicOff
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -87,6 +89,9 @@ import com.elixer.palette.constraints.HorizontalAlignment
 import com.elixer.palette.constraints.VerticalAlignment
 import com.wxn.base.ext.toComposeColor
 import com.wxn.base.util.ToastUtil
+import com.wxn.bookread.data.model.InfoBarSlots
+import com.wxn.bookread.data.model.InfoBarSpec
+import com.wxn.bookread.data.model.preference.ReadTipPreferences
 import com.wxn.bookread.data.model.preference.ReaderPreferences
 import com.wxn.reader.R
 import com.wxn.reader.data.model.AppPreferences
@@ -114,6 +119,7 @@ fun ReaderUISettings(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val showFontName by viewModel.showFontName.collectAsStateWithLifecycle()
+    val tipPreferences by viewModel.readTipPreferences.collectAsStateWithLifecycle()
 
     // 预设色板：从 ReaderThemePresets.ALL 派生（单一数据源，根治 Q-01 手抄不同步）。
     // 详见 PredefinedColors.ALL，ColorSection 按 effectiveIsDark + asBackground 过滤显示。
@@ -568,6 +574,18 @@ fun ReaderUISettings(
                                     containerColor = ComposeColor.Transparent
                                 ),
                                 modifier = Modifier.clickable { showDialog = true }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider()
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            SectionHeader(title = stringResource(R.string.reader_info_bar))
+                            InfoBarSettingsGroup(
+                                tip = tipPreferences,
+                                onUpdate = { hideHeader, hideFooter, headerSlots, footerSlots ->
+                                    viewModel.updateInfoBarConfig(hideHeader, hideFooter, headerSlots, footerSlots)
+                                }
                             )
                         }
                     }
@@ -1058,6 +1076,184 @@ private fun PerBookOverrideTipOverlay(onDismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.inverseOnSurface,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
             )
+        }
+    }
+}
+
+// ==== 阅读信息条设置（门禁决议：双开关 + 左中右槽位可配；滚动模式页码槽降级提示）====
+
+private data class InfoBarSlotOption(val code: Int, val labelRes: Int)
+
+@Composable
+private fun infoBarSlotOptions(): List<InfoBarSlotOption> = listOf(
+    InfoBarSlotOption(InfoBarSpec.SLOT_NONE, R.string.reader_info_bar_none),
+    InfoBarSlotOption(InfoBarSpec.SLOT_CHAPTER_TITLE, R.string.reader_info_bar_chapter_title),
+    InfoBarSlotOption(InfoBarSpec.SLOT_TIME, R.string.reader_info_bar_time),
+    InfoBarSlotOption(InfoBarSpec.SLOT_BATTERY, R.string.reader_info_bar_battery),
+    InfoBarSlotOption(InfoBarSpec.SLOT_PAGE, R.string.reader_info_bar_page),
+    InfoBarSlotOption(InfoBarSpec.SLOT_TOTAL_PROGRESS, R.string.reader_info_bar_total_progress),
+    InfoBarSlotOption(InfoBarSpec.SLOT_PAGE_AND_TOTAL, R.string.reader_info_bar_page_and_total),
+    InfoBarSlotOption(InfoBarSpec.SLOT_BOOK_NAME, R.string.reader_info_bar_book_name),
+)
+
+@Composable
+private fun InfoBarSettingsGroup(
+    tip: ReadTipPreferences?,
+    onUpdate: (Boolean, Boolean, InfoBarSlots, InfoBarSlots) -> Unit,
+) {
+    if (tip == null) return
+    val options = infoBarSlotOptions()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // 顶部信息条
+        SettingsSwitch(
+            title = stringResource(R.string.reader_info_bar_header),
+            checked = !tip.hideHeader,
+            onCheckedChange = { on ->
+                onUpdate(
+                    !on, tip.hideFooter,
+                    InfoBarSlots(tip.tipHeaderLeft, tip.tipHeaderMiddle, tip.tipHeaderRight),
+                    InfoBarSlots(tip.tipFooterLeft, tip.tipFooterMiddle, tip.tipFooterRight)
+                )
+            }
+        )
+        if (!tip.hideHeader) {
+            InfoBarSlotRow(
+                label = stringResource(R.string.reader_info_bar_slot_left),
+                selected = tip.tipHeaderLeft,
+                options = options,
+                onSelect = {
+                    onUpdate(
+                        tip.hideHeader, tip.hideFooter,
+                        InfoBarSlots(it, tip.tipHeaderMiddle, tip.tipHeaderRight),
+                        InfoBarSlots(tip.tipFooterLeft, tip.tipFooterMiddle, tip.tipFooterRight)
+                    )
+                }
+            )
+            InfoBarSlotRow(
+                label = stringResource(R.string.reader_info_bar_slot_middle),
+                selected = tip.tipHeaderMiddle,
+                options = options,
+                onSelect = {
+                    onUpdate(
+                        tip.hideHeader, tip.hideFooter,
+                        InfoBarSlots(tip.tipHeaderLeft, it, tip.tipHeaderRight),
+                        InfoBarSlots(tip.tipFooterLeft, tip.tipFooterMiddle, tip.tipFooterRight)
+                    )
+                }
+            )
+            InfoBarSlotRow(
+                label = stringResource(R.string.reader_info_bar_slot_right),
+                selected = tip.tipHeaderRight,
+                options = options,
+                onSelect = {
+                    onUpdate(
+                        tip.hideHeader, tip.hideFooter,
+                        InfoBarSlots(tip.tipHeaderLeft, tip.tipHeaderMiddle, it),
+                        InfoBarSlots(tip.tipFooterLeft, tip.tipFooterMiddle, tip.tipFooterRight)
+                    )
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 底部信息条
+        SettingsSwitch(
+            title = stringResource(R.string.reader_info_bar_footer),
+            checked = !tip.hideFooter,
+            onCheckedChange = { on ->
+                onUpdate(
+                    tip.hideHeader, !on,
+                    InfoBarSlots(tip.tipHeaderLeft, tip.tipHeaderMiddle, tip.tipHeaderRight),
+                    InfoBarSlots(tip.tipFooterLeft, tip.tipFooterMiddle, tip.tipFooterRight)
+                )
+            }
+        )
+        if (!tip.hideFooter) {
+            InfoBarSlotRow(
+                label = stringResource(R.string.reader_info_bar_slot_left),
+                selected = tip.tipFooterLeft,
+                options = options,
+                onSelect = {
+                    onUpdate(
+                        tip.hideHeader, tip.hideFooter,
+                        InfoBarSlots(tip.tipHeaderLeft, tip.tipHeaderMiddle, tip.tipHeaderRight),
+                        InfoBarSlots(it, tip.tipFooterMiddle, tip.tipFooterRight)
+                    )
+                }
+            )
+            InfoBarSlotRow(
+                label = stringResource(R.string.reader_info_bar_slot_middle),
+                selected = tip.tipFooterMiddle,
+                options = options,
+                onSelect = {
+                    onUpdate(
+                        tip.hideHeader, tip.hideFooter,
+                        InfoBarSlots(tip.tipHeaderLeft, tip.tipHeaderMiddle, tip.tipHeaderRight),
+                        InfoBarSlots(tip.tipFooterLeft, it, tip.tipFooterRight)
+                    )
+                }
+            )
+            InfoBarSlotRow(
+                label = stringResource(R.string.reader_info_bar_slot_right),
+                selected = tip.tipFooterRight,
+                options = options,
+                onSelect = {
+                    onUpdate(
+                        tip.hideHeader, tip.hideFooter,
+                        InfoBarSlots(tip.tipHeaderLeft, tip.tipHeaderMiddle, tip.tipHeaderRight),
+                        InfoBarSlots(tip.tipFooterLeft, tip.tipFooterMiddle, it)
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoBarSlotRow(
+    label: String,
+    selected: Int,
+    options: List<InfoBarSlotOption>,
+    onSelect: (Int) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedOption = options.firstOrNull { it.code == selected } ?: options.first()
+    val selectedLabel = stringResource(selectedOption.labelRes)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(0.4f)
+        )
+        Box(modifier = Modifier.weight(0.6f), contentAlignment = Alignment.CenterEnd) {
+            TextButton(onClick = { expanded = true }) {
+                Text(selectedLabel, style = MaterialTheme.typography.bodyMedium)
+                Icon(Icons.Filled.ExpandMore, contentDescription = null)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(option.labelRes),
+                                color = if (option.code == selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        onClick = {
+                            expanded = false
+                            if (option.code != selected) onSelect(option.code)
+                        }
+                    )
+                }
+            }
         }
     }
 }

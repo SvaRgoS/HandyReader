@@ -986,4 +986,19 @@
     <string name="global_label">वैश्विक</string>
     <string name="per_book_label">यह पुस्तक</string>
     <string name="invert_page_turn">पेज टर्निंग दिशा उल्टी करें</string>
+    <!-- रीडिंग जानकारी पट्टी -->
+    <string name="reader_info_bar">रीडिंग जानकारी पट्टी</string>
+    <string name="reader_info_bar_header">ऊपरी पट्टी</string>
+    <string name="reader_info_bar_footer">निचली पट्टी</string>
+    <string name="reader_info_bar_slot_left">बाएँ</string>
+    <string name="reader_info_bar_slot_middle">मध्य</string>
+    <string name="reader_info_bar_slot_right">दाएँ</string>
+    <string name="reader_info_bar_none">कोई नहीं</string>
+    <string name="reader_info_bar_chapter_title">अध्याय शीर्षक</string>
+    <string name="reader_info_bar_time">समय</string>
+    <string name="reader_info_bar_battery">बैटरी</string>
+    <string name="reader_info_bar_page">अध्याय पृष्ठ</string>
+    <string name="reader_info_bar_total_progress">कुल प्रगति</string>
+    <string name="reader_info_bar_page_and_total">पृष्ठ · प्रगति</string>
+    <string name="reader_info_bar_book_name">पुस्तक शीर्षक</string>
 </resources>
