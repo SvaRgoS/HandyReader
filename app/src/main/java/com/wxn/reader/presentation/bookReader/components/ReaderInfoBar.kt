@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
 import android.text.format.DateFormat
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,7 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,13 +32,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -44,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wxn.base.ext.toComposeColor
 import com.wxn.bookread.data.model.InfoBarSlots
 import com.wxn.bookread.data.model.InfoBarSpec
+import com.wxn.reader.R
 import com.wxn.reader.presentation.mainReader.MainReadViewModel
 import kotlinx.coroutines.delay
 import java.util.Calendar
@@ -51,6 +64,20 @@ import java.util.Locale
 
 /** 滚动模式 scrim 高度 = 条高 + 16dp（产品方案 §5.2） */
 private val SCRIM_EXTRA = 16.dp
+
+// ---- 电量槽电池图形绘制细节（跨层共享的规格常量在 InfoBarSpec，见方案审查建议 2）----
+private val BATTERY_CAP_WIDTH = 2.dp
+private val BATTERY_CAP_GAP = 1.dp
+
+/** 电池身宽 = 总宽 − 极帽 − 间隙 */
+private val BATTERY_BODY_WIDTH =
+    InfoBarSpec.BATTERY_TOTAL_WIDTH_DP.dp - BATTERY_CAP_WIDTH - BATTERY_CAP_GAP
+private val BATTERY_CAP_HEIGHT = 6.dp
+private val BATTERY_STROKE_WIDTH = 1.2.dp
+private val BATTERY_CORNER_RADIUS = 2.5.dp
+
+/** 电量填充相对轮廓色的透明度系数（填充更淡，与轮廓形成层次） */
+private const val BATTERY_FILL_ALPHA_FACTOR = 0.5f
 
 /** 信息条槽位单元：内容码 + 文本对齐 + 容器对齐 */
 private data class InfoBarCell(val code: Int, val textAlign: TextAlign, val contentAlign: Alignment)
@@ -185,11 +212,13 @@ fun ReaderInfoBar(
     val progression by viewModel.readProgression.collectAsStateWithLifecycle()
     val bookTitle = viewModel.currentBookTitle()
     val page = viewModel.infoBarPage.collectAsStateWithLifecycle().value
+    // 电量无障碍描述复用信息条既有词条（如"电量 85%"），零新增翻译
+    val batteryLabel = stringResource(R.string.reader_info_bar_battery)
 
+    // 电量槽不走文本渲染（BatteryIndicator 图形化），其余槽位仍为纯文本
     fun slotText(code: Int): String? = when (code) {
         InfoBarSpec.SLOT_CHAPTER_TITLE -> chapterName.ifEmpty { "—" }
         InfoBarSpec.SLOT_TIME -> timeText.ifEmpty { null }
-        InfoBarSpec.SLOT_BATTERY -> if (batteryPercent >= 0) "$batteryPercent%" else null
         InfoBarSpec.SLOT_PAGE -> page?.let { InfoBarSpec.formatPage(it.index0Based, it.pageSize) }
         InfoBarSpec.SLOT_TOTAL_PROGRESS -> InfoBarSpec.formatProgress(progression)
         InfoBarSpec.SLOT_PAGE_AND_TOTAL -> page?.let {
@@ -219,23 +248,34 @@ fun ReaderInfoBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 cells.forEach { cell ->
-                    val text = slotText(cell.code)
                     Box(
                         modifier = Modifier.weight(1f),
                         contentAlignment = cell.contentAlign
                     ) {
-                        if (text != null) {
-                            Text(
-                                text = text,
-                                fontSize = textSp,
-                                color = textColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = cell.textAlign,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .semantics { contentDescription = text }
-                            )
+                        if (cell.code == InfoBarSpec.SLOT_BATTERY) {
+                            // 电量槽：电池图形（轮廓+填充+内部百分比），未取得电量时隐藏
+                            if (batteryPercent >= 0) {
+                                BatteryIndicator(
+                                    percent = batteryPercent,
+                                    color = textColor,
+                                    contentDesc = "$batteryLabel $batteryPercent%"
+                                )
+                            }
+                        } else {
+                            val text = slotText(cell.code)
+                            if (text != null) {
+                                Text(
+                                    text = text,
+                                    fontSize = textSp,
+                                    color = textColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = cell.textAlign,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .semantics { contentDescription = text }
+                                )
+                            }
                         }
                     }
                 }
@@ -270,5 +310,83 @@ fun ReaderInfoBar(
         Box(modifier = modifier) {
             barContent()
         }
+    }
+}
+
+/**
+ * 电量槽电池图形：电池身轮廓 + 右侧正极帽 + 按电量水平的低透明度填充，
+ * 百分比文字居中显示在电池身内（方案 §3.2）。纯静态绘制，percent 变化时重组重绘；
+ * 图形为符号不随 RTL 镜像（极帽恒在右侧）。
+ */
+@Composable
+private fun BatteryIndicator(
+    percent: Int,
+    color: Color,
+    contentDesc: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(InfoBarSpec.BATTERY_TOTAL_WIDTH_DP.dp, InfoBarSpec.BATTERY_HEIGHT_DP.dp)
+            .semantics { contentDescription = contentDesc }
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokePx = BATTERY_STROKE_WIDTH.toPx()
+            val bodyWidth = BATTERY_BODY_WIDTH.toPx()
+            val bodyHeight = size.height
+            // 1. 电量填充：身内缩后按比例自左向右（低透明度，与轮廓形成层次）
+            val fillInset = strokePx / 2 + 0.5.dp.toPx()
+            val fillWidth = (bodyWidth - fillInset * 2) * InfoBarSpec.batteryFillFraction(percent)
+            if (fillWidth > 0f) {
+                drawRect(
+                    color = color.copy(alpha = color.alpha * BATTERY_FILL_ALPHA_FACTOR),
+                    topLeft = Offset(fillInset, fillInset),
+                    size = Size(fillWidth, bodyHeight - fillInset * 2)
+                )
+            }
+            // 2. 电池身轮廓
+            drawRoundRect(
+                color = color,
+                size = Size(bodyWidth, bodyHeight),
+                cornerRadius = CornerRadius(BATTERY_CORNER_RADIUS.toPx()),
+                style = Stroke(width = strokePx)
+            )
+            // 3. 正极帽（垂直居中于身侧）
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(
+                    bodyWidth + BATTERY_CAP_GAP.toPx(),
+                    (bodyHeight - BATTERY_CAP_HEIGHT.toPx()) / 2f
+                ),
+                size = Size(BATTERY_CAP_WIDTH.toPx(), BATTERY_CAP_HEIGHT.toPx()),
+                cornerRadius = CornerRadius(1.dp.toPx())
+            )
+        }
+        // 百分比文字限定在电池身宽度内精确居中（右侧极帽不参与，避免视觉偏移）；
+        // 大字体缩放下 Clip 防止溢出撑破图形（审查必改项 1）。
+        // 垂直居中约束：默认字体填充（includeFontPadding）会为重音符号预留顶部空间，
+        // 使数字字形在行盒内偏下——必须关闭字体填充、行盒收敛为字号并按度量居中，
+        // 字形才能在电池身内视觉居中，而非仅行盒居中
+        Text(
+            text = "$percent%",
+            fontSize = InfoBarSpec.BATTERY_TEXT_SP.sp,
+            lineHeight = InfoBarSpec.BATTERY_TEXT_SP.sp,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+            textAlign = TextAlign.Center,
+            style = LocalTextStyle.current.merge(
+                TextStyle(
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    lineHeightStyle = LineHeightStyle(
+                        alignment = LineHeightStyle.Alignment.Center,
+                        trim = LineHeightStyle.Trim.None
+                    )
+                )
+            ),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .width(BATTERY_BODY_WIDTH)
+        )
     }
 }

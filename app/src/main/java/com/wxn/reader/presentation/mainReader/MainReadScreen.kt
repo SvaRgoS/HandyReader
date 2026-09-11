@@ -29,8 +29,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.compose.BackHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
@@ -48,6 +53,10 @@ import com.wxn.reader.navigation.navigateToHome
 import com.wxn.reader.presentation.bookReader.BookReaderUiState
 import com.wxn.reader.presentation.sharedComponents.BookCover
 import com.wxn.reader.ui.theme.stringResource
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadFab
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadFabGuideTooltip
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadSettingsSheet
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadStatus
 import com.wxn.reader.util.FullScreenManager
 import com.wxn.reader.util.KeepScreenOn
 import com.wxn.reader.util.SetFullScreen
@@ -68,11 +77,43 @@ fun MainReadScreen(viewModel: MainReadViewModel = hiltViewModel()) {
     val showMenu by viewModel.showMenu.collectAsStateWithLifecycle()
     val showReaderUISettings by viewModel.showReaderUISettings.collectAsStateWithLifecycle()
     val showReaderSettings by viewModel.showReaderSettings.collectAsStateWithLifecycle()
+    val autoReadState by viewModel.autoReadState.collectAsStateWithLifecycle()
+    val showAutoReadSheet by viewModel.showAutoReadSheet.collectAsStateWithLifecycle()
+    val autoReadPageChars by viewModel.autoReadPageChars.collectAsStateWithLifecycle()
+    val fabDock by viewModel.fabDock.collectAsStateWithLifecycle()
+    val showAutoReadFabGuide by viewModel.showAutoReadFabGuide.collectAsStateWithLifecycle()
+    val showTextToolbar by viewModel.showTextToolbar.collectAsStateWithLifecycle()
+    val autoReadActive = autoReadState.status != AutoReadStatus.IDLE
     val showSystemBars by remember {
         derivedStateOf { showMenu || showReaderUISettings || showReaderSettings }
     }
 
-    KeepScreenOn(readerPreferences.keepScreenOn)
+    // 自动阅读：弹层（菜单/设置面板/选择工具栏）任一打开即暂停，全部关闭恢复（方案 §7.5，审查 S2/G11）
+    val autoReadOverlayBlocking = showMenu || showReaderSettings || showReaderUISettings || showTextToolbar
+    LaunchedEffect(autoReadOverlayBlocking, autoReadActive) {
+        if (autoReadActive) viewModel.onAutoReadOverlay(pause = autoReadOverlayBlocking)
+    }
+
+    // 自动阅读运行中强制亮屏（方案 §9）
+    KeepScreenOn(readerPreferences.keepScreenOn || autoReadActive)
+
+    // 自动阅读切后台暂停；回前台保持暂停待用户恢复（方案 §7.5）
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) viewModel.onAutoReadBackground()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // 自动阅读 Back 优先级（方案 §7.5）：弹窗/菜单/工具栏打开时由各自组件处理；裸 Running 拦截 = 退出自动阅读
+    BackHandler(
+        enabled = autoReadActive && !showAutoReadSheet && !showMenu &&
+                !showReaderSettings && !showReaderUISettings && !showTextToolbar
+    ) {
+        viewModel.stopAutoReadByBack()
+    }
 
     DisposableEffect(Unit) {
         FullScreenManager.registerReadPage()
@@ -103,6 +144,42 @@ fun MainReadScreen(viewModel: MainReadViewModel = hiltViewModel()) {
     ) {
 
         ReaderView(viewModel = viewModel)
+
+        // 自动阅读 FAB 层（真机验收第二轮 P2）：全屏容器不消费点击、不拦截触控，
+        // 仅 FAB 本体可交互；位置/吸附由 VM 的 fabDock 状态驱动（拖拽/贴边吸附/形变动画）
+        val autoReadFabVisible = autoReadActive && !showAutoReadSheet && !showMenu &&
+                !showReaderSettings && !showReaderUISettings && !showTextToolbar
+        Box(modifier = Modifier.fillMaxSize()) {
+            AutoReadFab(
+                visible = autoReadFabVisible,
+                paused = autoReadState.status == AutoReadStatus.PAUSED,
+                dockState = fabDock,
+                onDockStateChange = { viewModel.updateFabDock(it) },
+                onClick = { viewModel.onAutoReadFabTap() },
+                onLongClick = { viewModel.stopAutoReadByBack() },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // 首次引导 Tip（第二轮 P3；第三轮 P7 解耦修复）：显隐仅由 showAutoReadFabGuide 门控；
+        // 首帧只落盘（mark，不动 UI 状态）——修复原实现"落盘即置否"导致 Tip ≤1 帧闪没的缺陷。
+        // 落盘先行保证跨会话严格一次（R3 意图）；session 内未处置重显属预期（审查 N2，与搜索 Tip 一致）
+        val autoReadFabGuideVisible = autoReadFabVisible && showAutoReadFabGuide
+        LaunchedEffect(autoReadFabGuideVisible) {
+            if (autoReadFabGuideVisible) viewModel.markAutoReadFabGuideShown()
+        }
+        if (autoReadFabGuideVisible) {
+            AutoReadFabGuideTooltip(onDismiss = { viewModel.dismissAutoReadFabGuide() })
+        }
+
+        if (showAutoReadSheet) {
+            AutoReadSettingsSheet(
+                viewModel = viewModel,
+                readerPreferences = readerPreferences,
+                pageChars = autoReadPageChars,
+                onDismiss = { viewModel.dismissAutoReadSheet() }
+            )
+        }
 
         AnimatedVisibility(
             visible = isLoading,

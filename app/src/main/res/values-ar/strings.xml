@@ -133,6 +133,19 @@
     <string name="scroll_mode">وضع التمرير</string>
     <string name="dual_column">عرض عمودين</string>
     <string name="volume_key_page_turning">قلب الصفحات بأزرار الصوت</string>
+    <string name="auto_reading">القراءة التلقائية</string>
+    <string name="auto_read_speed">سرعة القراءة</string>
+    <string name="auto_read_chars_per_min">حرف/دقيقة</string>
+    <string name="auto_read_est_page_seconds">حوالي %1$d ثانية لكل صفحة</string>
+    <string name="close_auto_reading">إيقاف القراءة التلقائية</string>
+    <string name="auto_read_stopped">تم إيقاف القراءة التلقائية</string>
+    <string name="auto_read_mode">نمط التقليب</string>
+    <string name="auto_read_mode_scroll">تمرير تلقائي</string>
+    <string name="auto_read_mode_cover">تغطية الصفحة</string>
+    
+<string name="auto_read_fab_guide_title">تم تفعيل القراءة التلقائية</string>
+    
+<string name="auto_read_fab_guide_description">اضغط للإيقاف المؤقت أو الاستئناف؛ اضغط مطولاً للخروج من القراءة التلقائية؛ اسحب إلى حافة الشاشة لتثبيت الزر</string>
     <string name="reading_progression">اتجاه القراءة</string>
     <string name="tap_navigation">التنقل باللمس</string>
     <string name="left_to_right">من اليسار إلى اليمين</string>

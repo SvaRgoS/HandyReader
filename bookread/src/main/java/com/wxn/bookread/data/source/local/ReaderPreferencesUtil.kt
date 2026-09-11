@@ -78,6 +78,8 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
         val BRIGHTNESS = floatPreferencesKey("brightness")                                   //亮度值
         val BRIGHTNESS_SET = booleanPreferencesKey("brightness_set")                         //是否手动设置过亮度
         val COLUMNS = intPreferencesKey("columns")                               //双列显示开关, ==2 即开始
+        val AUTO_READ_SPEED = intPreferencesKey("auto_read_speed")                 //自动阅读速度（字/分钟）
+        // v2 裁决（2026-09-08 仲裁方案 §3.4）：AUTO_READ_MODE 键删除，自动阅读模式由 VM 层现算派生不落盘
 
         // Default values
 //        @OptIn(ExperimentalReadiumApi::class)
@@ -118,7 +120,9 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
             invertPageTurn = false,
             brightness = 0.0f,
             brightnessSet = false,
-            columns = 1)
+            columns = 1,
+            autoReadSpeed = ReaderPreferences.AUTO_READ_SPEED_DEFAULT,
+        )
     }
 
     private suspend fun initializeDefaultPreferences() {
@@ -167,6 +171,7 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
                 pref[TITLE_BOTTOM_SPACING] = defaultPreferences.titleBottomSpacing.toDouble()
 
                 pref[COLUMNS] = defaultPreferences.columns
+                pref[AUTO_READ_SPEED] = defaultPreferences.autoReadSpeed
             }
         }
     }
@@ -238,6 +243,7 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
             titleBottomSpacing = preferences[TITLE_BOTTOM_SPACING] ?: defaultPreferences.titleBottomSpacing,
 
             columns = preferences[COLUMNS] ?: defaultPreferences.columns,
+            autoReadSpeed = ReaderPreferences.coerceAutoReadSpeed(preferences[AUTO_READ_SPEED] ?: defaultPreferences.autoReadSpeed),  //读取钳制：防异常存量值越出滑杆范围（方案 A 审查 N2）
         )
     }
 
@@ -362,6 +368,20 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
             prefs[SCROLL] = scrollType
         }
     }
+
+    /**
+     * 自动阅读速度（字/分钟），钳制到 [ReaderPreferences.AUTO_READ_SPEED_MIN]~[ReaderPreferences.AUTO_READ_SPEED_MAX]。
+     * 全局阅读行为设置，与 [updateScrollType] 同为全局模式：
+     * 直接写 DataStore，不进 per-book override，不触发重排。
+     */
+    suspend fun updateAutoReadSpeed(speed: Int) {
+        Logger.d("ReaderPreferencesUtil::updateAutoReadSpeed[$speed]")
+        dataStore.edit { prefs ->
+            prefs[AUTO_READ_SPEED] = ReaderPreferences.coerceAutoReadSpeed(speed)
+        }
+    }
+
+    // v2 裁决（2026-09-08 仲裁方案 §3.4）：updateAutoReadMode 方法删除——模式不落盘，会话内存态由 VM 层维护
 
     /**
      * 双列显示开关（全局阅读设置，不进 per-book override）。
@@ -526,6 +546,7 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
             preferences[BRIGHTNESS_SET] = defaultPreferences.brightnessSet
             // dualColumn 与 scroll 同属 reader 行为组（resetReadUiPreferences 不处理：双列是阅读行为，不是 UI 外观）
             preferences[COLUMNS] = defaultPreferences.columns
+            preferences[AUTO_READ_SPEED] = defaultPreferences.autoReadSpeed
         }
     }
 

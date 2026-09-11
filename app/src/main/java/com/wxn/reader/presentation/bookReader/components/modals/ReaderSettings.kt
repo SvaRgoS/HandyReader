@@ -40,6 +40,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadStatus
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadViewPolicy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -188,6 +190,19 @@ fun ReaderSettings(
                     onCheckedChange = { isVolumeKeyPageTurning ->
                         viewModel.updateVolumeKeyPageTurning(isVolumeKeyPageTurning)
                     }
+                )
+
+                // 自动阅读（方案 §7.2）：开=退出本面板并立即进入；关=退出自动阅读
+                // TTS 互斥门控（2026-09-11-plan-auto-read-tts-entry-gating §3.2）：TTS 未完全
+                // 停止（非 IDLE）时置灰禁止开启，防止开启自动阅读中止 TTS 播放
+                val isAutoReadOn = viewModel.autoReadState.collectAsState().value.status !=
+                        AutoReadStatus.IDLE
+                val ttsPlayStatus = viewModel.ttsPlayStatus.collectAsState().value
+                SettingsSwitch(
+                    title = stringResource(R.string.auto_reading),
+                    checked = isAutoReadOn,
+                    onCheckedChange = { viewModel.toggleAutoReadFromSettings() },
+                    enabled = AutoReadViewPolicy.isEntryEnabled(isAutoReadOn, ttsPlayStatus)
                 )
 
                 // v5 双列显示（dual-column）。与连续垂直滚动（scroll=6）互斥：

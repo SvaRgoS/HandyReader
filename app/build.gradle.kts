@@ -417,6 +417,7 @@ dependencies {
     testImplementation(libs.material.kolor)
     testImplementation(libs.robolectric)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // ── androidTest（instrumentation 测试）──
     // P-CRASH-3：Room 迁移测试（MigrationTestHelper）

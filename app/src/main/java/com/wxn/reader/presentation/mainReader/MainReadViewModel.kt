@@ -28,6 +28,7 @@ import com.wxn.base.ext.statusBarHeight
 import com.wxn.base.ext.toStringColor
 import com.wxn.base.ext.sysIsDarkMode
 import com.wxn.base.util.BrightnessHelper
+import com.wxn.base.util.Coroutines
 import com.wxn.base.util.Logger
 import com.wxn.base.util.PathUtil
 import com.wxn.base.util.ToastUtil
@@ -51,6 +52,13 @@ import com.wxn.bookread.data.source.local.ReaderPreferencesUtil
 import com.wxn.bookread.data.source.local.TranslatorPrefsUtil
 import com.wxn.bookread.data.source.local.TtsPreferencesUtil
 import com.wxn.bookread.provider.ChapterProvider
+import com.wxn.bookread.ui.PageView
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadController
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadSessionScrollTracker
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadState
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadStatus
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadViewPolicy
+import com.wxn.reader.presentation.mainReader.autoread.FabDockUiState
 import com.wxn.reader.BookApplication
 import com.wxn.reader.R
 import com.wxn.reader.data.dto.PerBookMetaEntity
@@ -243,6 +251,61 @@ class MainReadViewModel @Inject constructor(
 
     //给连续垂直滚动模式用的
     val pageProvider : ContinuousPageProvider = ContinuousPageProvider(pageController)
+
+    // ==================== 自动阅读（docs/plans/2026-09-05-plan-auto-reading.md v5） ====================
+
+    private val _showAutoReadSheet = MutableStateFlow(false)
+    val showAutoReadSheet: StateFlow<Boolean> = _showAutoReadSheet.asStateFlow()
+
+    /** 弹窗"当前页约 N 秒"换算用：当前页字符数（CJK 即字数；西文按字符计，速度语义单调一致） */
+    private val _autoReadPageChars = MutableStateFlow(0)
+    val autoReadPageChars: StateFlow<Int> = _autoReadPageChars.asStateFlow()
+
+    /** 自动阅读呈现方式（会话内存态，不落盘——v2 裁决）：0=自动滚动, 1=覆盖翻页。
+     *  进入时由 [AutoReadViewPolicy.deriveAutoReadMode] 派生初始化；弹窗二选一仅改内存与会话内视图，退出随会话消失。 */
+    private val _autoReadMode = MutableStateFlow(1)
+    val autoReadMode: StateFlow<Int> = _autoReadMode.asStateFlow()
+
+    /** 会话视图权威值状态机（F2）：恢复基准 + 会话内权威值 + 会话代际号（陈旧协程防护，方案 §4.4）。
+     *  VM 是会话内唯一的 scroll 写入方——任何路径（弹窗二选一/ReaderSettings 手动切换）的视图
+     *  切换都必须经 [updateScrollType] 钩子推进 tracker。不读 readerPreferences.value：
+     *  其经 DataStore 异步发射存在滞后，按旧值判等会漏切/漏恢复（N11/N12）。 */
+    private val sessionTracker = AutoReadSessionScrollTracker()
+
+    val autoReadController = AutoReadController(
+        scope = viewModelScope,
+        speedCharsPerMin = { readerPreferences.value.autoReadSpeed },
+        isScrollMode = { readerPreferences.value.scroll == 6 },
+        currentPageChars = { pageController.currentPage()?.text?.length ?: 0 },
+        commitNextPage = {
+            // factory 为 null 仅发生在视图切换销毁窗口（真机验收修订①的切换路径），非书末：
+            // 返回 true 跳过本次提交继续运行，待新视图就绪后自然续推；真正的书末由 hasNext() 返回 false
+            pageController.pageFactory?.moveToNext(true) ?: true
+        },
+        isChapterLoading = { pageController.isChapterLoading() },
+        onBookEnd = {
+            finishAutoReadSession()   //书末自动停止也须恢复手动翻页模式（四轮 N1 统一路径）
+            ToastUtil.show(R.string.end_of_book)
+        },
+        onFrame = { fraction ->
+            if (readerPreferences.value.scroll != 6) {
+                pageController.autoPageProgressFraction = fraction
+                (pageController.callBack as? PageView)?.invalidate()
+            }
+        },
+    )
+
+    val autoReadState: StateFlow<AutoReadState> = autoReadController.state
+    val isAutoReadActive: Boolean get() = autoReadController.isActive
+
+    /** 自动阅读 FAB 位置/吸附状态（真机验收第二轮 P2，方案 §3.2，审查 R6/R7）：会话级，存 VM 不存页面 */
+    private val _fabDock = MutableStateFlow(FabDockUiState())
+    val fabDock: StateFlow<FabDockUiState> = _fabDock.asStateFlow()
+
+    /** 拖拽逐帧上报 / 释放落位、吸附弹出统一走此入口（吸附态 x 渲染期派生，VM 不感知父尺寸） */
+    fun updateFabDock(state: FabDockUiState) {
+        _fabDock.value = state
+    }
 
     /** E1：进程内去重，保证同一本书在一次进程生命周期内只通知一次"读完"（两条 FINISHED 路径共享）。 */
     private val notifiedBookIds = java.util.Collections.synchronizedSet(HashSet<Long>())
@@ -1027,6 +1090,10 @@ class MainReadViewModel @Inject constructor(
     private val _showSearchFabGuide = MutableStateFlow(false)
     val showSearchFabGuide: StateFlow<Boolean> = _showSearchFabGuide.asStateFlow()
 
+    /** 自动阅读 FAB 首次引导（第二轮 P3）：初值由偏好决定；隐藏仅经 dismissAutoReadFabGuide（用户处置） */
+    private val _showAutoReadFabGuide = MutableStateFlow(false)
+    val showAutoReadFabGuide: StateFlow<Boolean> = _showAutoReadFabGuide.asStateFlow()
+
     data class NavigationLoadingState(
         val isLoading: Boolean = false,
         val targetChapterIndex: Int = -1,
@@ -1397,6 +1464,10 @@ class MainReadViewModel @Inject constructor(
             _showSearchFabGuide.value = !guidePrefUtil.isSearchFabGuideShown()
         }
 
+        viewModelScope.launch {
+            _showAutoReadFabGuide.value = !guidePrefUtil.isAutoReadFabGuideShown()
+        }
+
         ChapterProvider.init(context, readerTipPrefsUtil, readerPrefsUtil)
         resetCurrentDayStartTime()
 
@@ -1535,6 +1606,7 @@ class MainReadViewModel @Inject constructor(
                 }
 
                 Logger.d("MainReaderViewModel:bookload:load reset book to pageController:${System.currentTimeMillis()}")
+                stopAutoReadInternal()   // 切书停止自动阅读（方案 §7.6）
                 pageControllerOwnerToken = pageController.resetBook(newBook) { success ->//重新加载章节数
                     if (success) {
                         Logger.d("MainReaderViewModel:bookload: LOAD_SUCCESS @ ${System.currentTimeMillis()}")
@@ -1749,6 +1821,19 @@ class MainReadViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        autoReadController.stop()
+        // v2（仲裁方案 §3.2.4 + 审查 N10）：离开阅读页时自动阅读可能仍在运行（H-9 路径）。
+        // viewModelScope 已取消 → updateScrollType（launch 于 viewModelScope）不可用，
+        // 持久化恢复改走应用级作用域；揭页状态对单例 PageViewController 同步复位，
+        // 防止 isAutoPage/fraction 泄漏进下一次阅读会话（PageViewController 为 @Singleton）。
+        pageController.isAutoPage = false
+        pageController.autoPageProgressFraction = 0f
+        (pageController.callBack as? PageView)?.invalidate()
+        //与 finishAutoReadSession 对称（F2）：exit() 自带幂等复位（六轮 N15 语义）；
+        //viewModelScope 已取消 → 恢复走应用级作用域直连 readerPrefsUtil（不经 updateScrollType 钩子）
+        sessionTracker.exit()?.let { original ->
+            Coroutines.scope().launch { readerPrefsUtil.updateScrollType(original) }
+        }
         searchJob?.cancel()
         Logger.i("MainReadViewModel::onCleared:ownerToken=$pageControllerOwnerToken")
         pageController.navigationLoadingListener = null
@@ -1894,6 +1979,8 @@ class MainReadViewModel @Inject constructor(
      * 滑动切换界面，或者跳转切换界面时，通知进度刷新
      */
     override fun onPageChange() {
+        autoReadController.onPageCommitted()
+        _autoReadPageChars.value = pageController.currentPage()?.text?.length ?: 0
         val curChapter = pageController.textChapter(0)
         val curChapterIndex = pageController.durChapterIndex
         val curPageInChpaterIndex = pageController.durPageIndex
@@ -2937,7 +3024,19 @@ class MainReadViewModel @Inject constructor(
 
     fun updateScrollType(scrollType: Int) {
         viewModelScope.launch {
+            // 捕获会话代际（F2 §4.4 R2-1）：下方 DataStore 写入挂起期间会话可能更替（退出/重进），
+            // 恢复后 epoch 不一致说明本协程已陈旧，不得再同步会话态（否则污染新会话权威值）
+            val epochAtLaunch = sessionTracker.epoch
             readerPrefsUtil.updateScrollType(scrollType)
+            // 自动阅读运行中切换翻页方式：同步揭页绘制开关（审查 S6），
+            // 并反向同步会话呈现态与会话权威值（F2：覆盖 ReaderSettings:274 手动切路径；
+            // 六轮 N13）——控制器按底层视图（scroll==6）分发 tick，会话态若不同步，
+            // 弹窗二选一选中态将与实际运行的呈现方式持续脱节
+            if (autoReadController.isActive && epochAtLaunch == sessionTracker.epoch) {
+                pageController.isAutoPage = scrollType != 6
+                _autoReadMode.value = if (scrollType == 6) 0 else 1
+                sessionTracker.trackViewChange(scrollType)
+            }
         }
     }
 
@@ -2975,6 +3074,130 @@ class MainReadViewModel @Inject constructor(
     fun updateKeepScreenOn(isKeepScreenOn:Boolean) {
         viewModelScope.launch {
             readerPrefsUtil.updateKeepScreenOn(isKeepScreenOn)
+        }
+    }
+
+    // ==================== 自动阅读交互入口（方案 §7） ====================
+
+    /** 阅读器设置入口开关：开=进入自动阅读并关闭设置面板；关=退出 */
+    fun toggleAutoReadFromSettings() {
+        if (autoReadController.isActive) {
+            stopAutoReadInternal()
+        } else {
+            // TTS 互斥（后启生效）：启动自动阅读前停 TTS（方案 §9）
+            if (_ttsPlayStatus.value == TtsPlaybackStatus.PLAYING) {
+                pageController.stopTts()
+                setTtsPanelStatus(TtsPlayerPanelStatus.PanelClose)
+            }
+            _showReaderSettings.value = false
+            // 同步关闭通用菜单（真机验收第二轮 P1）：否则菜单作为弹层立即把自动阅读暂停，
+            // 用户须再点一次屏幕退出菜单才能开始；同一同步块内完成 → 单次重组直达纯阅读 RUNNING
+            _showMenu.value = false
+            startAutoReadInternal()
+        }
+    }
+
+    private fun startAutoReadInternal() {
+        _autoReadPageChars.value = pageController.currentPage()?.text?.length ?: 0
+        // v2 派生（仲裁方案 §3.2.2）：模式由（手动翻页模式+双列）现算，入口零视图切换、零落盘。
+        // 手动 6 → 本就在滚动视图跑自动滚动；手动非 6 → 揭页叠加在当前翻页视图（触摸冻结，delegate 不参与）
+        val prefs = readerPreferences.value
+        //F2：会话权威值状态机统一由 tracker 承载（enter=建立恢复基准；epoch++ 使在途陈旧协程失效）
+        sessionTracker.enter(prefs.scroll)
+        _autoReadMode.value = AutoReadViewPolicy.deriveAutoReadMode(prefs.scroll, prefs.columns == 2)
+        // isAutoPage 仅翻页模式有意义（揭页绘制开关）；滚动模式由 scrollAdapter 驱动
+        pageController.isAutoPage = _autoReadMode.value != 0
+        autoReadController.start()
+    }
+
+    /**
+     * 会话退出统一清理（R-D）：复位揭页状态 + 恢复进入前的手动翻页模式。
+     * 前置条件：autoReadController 已停止，本函数不负责停止。
+     */
+    private fun finishAutoReadSession() {
+        pageController.isAutoPage = false                   //必须在恢复视图前复位（首轮审查 N1）
+        pageController.autoPageProgressFraction = 0f
+        (pageController.callBack as? PageView)?.invalidate()
+        //会话退出统一恢复（R-D/F2）：视图未被会话改动或无会话时 exit() 返回 null 不触发恢复；
+        //exit() 自带幂等复位（六轮 N15 语义）
+        sessionTracker.exit()?.let { updateScrollType(it) }
+    }
+
+    private fun stopAutoReadInternal() {
+        autoReadController.stop()
+        finishAutoReadSession()
+    }
+
+    /** Back 键退出（裸 Running 态）：停止 + Toast，不退出阅读页（方案 §7.2） */
+    fun stopAutoReadByBack() {
+        if (!autoReadController.isActive) return
+        stopAutoReadInternal()
+        ToastUtil.show(R.string.auto_read_stopped)
+    }
+
+    /** FAB 点按：暂停 + 弹出设置弹窗，FAB 隐藏（方案 §7.3） */
+    fun onAutoReadFabTap() {
+        if (!autoReadController.isActive) return
+        _showAutoReadSheet.value = true
+        autoReadController.pauseByOverlay()
+    }
+
+    /** 关闭设置弹窗：恢复运行（方案 §7.4） */
+    fun dismissAutoReadSheet() {
+        _showAutoReadSheet.value = false
+        if (autoReadController.isActive) autoReadController.resumeByOverlay()
+    }
+
+    /** 弹窗内"关闭自动翻页"：退出自动阅读并关弹窗 */
+    fun stopAutoReadFromSheet() {
+        _showAutoReadSheet.value = false
+        stopAutoReadInternal()
+    }
+
+    /** 翻页模式触摸冻结（PageView.onTouchEvent → ReaderView 工厂注入） */
+    fun onAutoReadTouch(down: Boolean) {
+        if (down) autoReadController.pauseByTouch() else autoReadController.resumeByTouch()
+    }
+
+    /** 接管型暂停开关：常规菜单/文本选择/滚动模式选择手势（方案 §7.5） */
+    fun onAutoReadOverlay(pause: Boolean) {
+        if (pause) autoReadController.pauseByOverlay() else autoReadController.resumeByOverlay()
+    }
+
+    /** 切后台自动暂停；回前台保持暂停待用户恢复（方案 §7.5，已采纳） */
+    fun onAutoReadBackground() {
+        if (autoReadController.isActive) autoReadController.pauseByOverlay()
+    }
+
+    /** 速度滑杆实时调速（弹窗调用）。全局阅读行为设置，不触发重排（同 [updateScrollType] 模式） */
+    fun updateAutoReadSpeed(speed: Int) {
+        viewModelScope.launch {
+            readerPrefsUtil.updateAutoReadSpeed(speed)
+        }
+    }
+
+    /**
+     * 自动阅读呈现方式（弹窗二选一调用）：0=自动滚动, 1=覆盖翻页。v2 起为会话内存态，不落盘——
+     * 切换仅改内存并经 [updateScrollType] 仲裁会话内底层视图（其 S6 钩子自动同步 isAutoPage）；
+     * 写入的 scroll 在退出时被 [finishAutoReadSession] 还原，对手动设置的影响被会话边界吞掉。
+     */
+    fun updateAutoReadMode(mode: Int) {
+        if (!autoReadController.isActive) return                        //会话守卫（四轮 N7）：非会话调用会产生无恢复基准的视图切换
+        if (mode == 0 && readerPreferences.value.columns == 2) return   //双列与自动滚动互斥（R-B 运行时防线）
+        _autoReadMode.value = mode
+        viewModelScope.launch {
+            //会话守卫（六轮 N14）：当前调用方全在主线程（viewModelScope=Main.immediate，launch 体
+            //内联执行到首个挂起点）不可触发；防御未来离主线程调用——退出后滞后的切换协程
+            //不得再动视图，否则同族于 N11/N12 的陈旧执行会污染刚恢复的手动模式
+            if (!autoReadController.isActive) return@launch
+            //目标以会话权威值计算（N12）：DataStore 发射滞后下按 readerPreferences.value 判等会漏切；
+            //先写权威值再切换（快速连点时第二次点按读到的是推进后的值，不依赖 DataStore 回达），
+            //updateScrollType 钩子内的 trackViewChange 与此处同值幂等
+            val target = AutoReadViewPolicy.targetScrollForAutoMode(mode, sessionTracker.sessionScroll)
+            if (target != sessionTracker.sessionScroll) {
+                sessionTracker.trackViewChange(target)
+                updateScrollType(target)
+            }
         }
     }
 
@@ -3806,6 +4029,25 @@ class MainReadViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 自动阅读 FAB 引导落盘：Tip 首次满足显示条件时由 MainReadScreen 首帧调用（只写盘，不动 UI 状态）。
+     * 第三轮 P7 修复：原实现第一步置 `_showAutoReadFabGuide=false`，恰好是 Tip 的显隐门控，
+     * 致 Popup ≤1 帧闪没且偏好已写 true、永不可见；落盘先行仍保证跨会话严格只显示一次（R3 意图）。
+     */
+    fun markAutoReadFabGuideShown() {
+        viewModelScope.launch {
+            guidePrefUtil.setAutoReadFabGuideShown()
+        }
+    }
+
+    /** 用户处置 Tip（点击外部/返回）时调用：隐藏 UI + 幂等落盘（session 内此后不再显示） */
+    fun dismissAutoReadFabGuide() {
+        _showAutoReadFabGuide.value = false
+        viewModelScope.launch {
+            guidePrefUtil.setAutoReadFabGuideShown()
+        }
+    }
+
     /****
      * 书籍内搜索功能，
      * 点击某一条搜索条目，导航到该条目
@@ -3940,6 +4182,8 @@ class MainReadViewModel @Inject constructor(
     }
 
     override fun onTtsPlayStatus(ttsPlayStatus: TtsPlaybackStatus) {
+        // TTS 互斥（后启生效）：覆盖媒体键/蓝牙等非 toggleTts 启动路径（方案 §9，审查 G2）
+        if (ttsPlayStatus == TtsPlaybackStatus.PLAYING && autoReadController.isActive) stopAutoReadInternal()
         _ttsPlayStatus.value = ttsPlayStatus
         Logger.d("MainReadViewModel::onTtsPlayStatus:$ttsPlayStatus")
 
@@ -4085,6 +4329,8 @@ class MainReadViewModel @Inject constructor(
             if (pageController.currentPage()?.text.isNullOrEmpty()) {
                 ToastUtil.show(R.string.no_text_to_speech_on_current_page)
             } else {
+                // TTS 互斥（后启生效）：TTS 启动前停自动阅读（方案 §9）
+                if (autoReadController.isActive) stopAutoReadInternal()
                 ttsPlay()
             }
         } else {

@@ -13,7 +13,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +41,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -97,8 +100,10 @@ import com.wxn.bookread.ui.ListDotRenderer
 import com.wxn.bookread.ui.RenderResources
 import com.wxn.bookread.ui.TextPageFactory
 import com.wxn.reader.presentation.mainReader.models.ScrollSnapshot
+import com.wxn.reader.presentation.mainReader.autoread.AutoReadScrollAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import java.io.File
@@ -263,6 +268,30 @@ fun ContinuousScrollReaderView(viewModel: MainReadViewModel) {
         }
     }
 
+    // 自动阅读：滚动适配器随组合注册/注销（切翻页模式时 composition 销毁自动置空）
+    val currentMergedPages by rememberUpdatedState(mergedPages)
+    val autoReadAdapter = remember(lazyListState) {
+        AutoReadScrollAdapterImpl(
+            lazyListState = lazyListState,
+            mergedPagesProvider = { currentMergedPages },
+            chapterSizeProvider = { pageProvider.pageController.chapterSize },
+        )
+    }
+    DisposableEffect(viewModel) {
+        viewModel.autoReadController.scrollAdapter = autoReadAdapter
+        onDispose { viewModel.autoReadController.scrollAdapter = null }
+    }
+
+    // 自动阅读：用户拖动即暂停、松手恢复（方案 §7.5；LazyListState.interactionSource）
+    LaunchedEffect(lazyListState) {
+        lazyListState.interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> viewModel.onAutoReadTouch(true)
+                is DragInteraction.Stop, is DragInteraction.Cancel -> viewModel.onAutoReadTouch(false)
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -298,6 +327,7 @@ fun ContinuousScrollReaderView(viewModel: MainReadViewModel) {
                         if (handleMode != HandleDragMode.NONE) {
                             isHandleDragging = true
                             pageProvider.setSelectionGestureActive(true)
+                            viewModel.onAutoReadOverlay(true)
                             try {
                                 //处理开始结束icon的拖拽操作， 这里是一个循环操作
                                 handleDragLoop(
@@ -308,6 +338,7 @@ fun ContinuousScrollReaderView(viewModel: MainReadViewModel) {
                                 )
                             } finally {
                                 pageProvider.setSelectionGestureActive(false)
+                                viewModel.onAutoReadOverlay(false)
                                 isHandleDragging = false
                             }
                             return@awaitEachGesture
@@ -470,8 +501,9 @@ fun ContinuousScrollContent(
     var currentVisibleChapter by remember { mutableIntStateOf(-1) }
     //当前可见的页面索引
     var currentVisiblePage by remember { mutableIntStateOf(-1) }
-    //是否滚动到初始位置？
-    var hasScrolledToInitialPosition by remember { mutableStateOf(false) }
+    //初始定位是否已解决（F3）：定位成功或超时放弃才置 true；未解决期间观察者/onDispose
+    //禁止把列表可见位置写回 pageController（防把 item 0 反推的章节/页码持久化）
+    var initialPositionResolved by remember { mutableStateOf(false) }
 
     val lastSaveReadTime = remember { AtomicLong(System.currentTimeMillis()) }
 
@@ -502,21 +534,31 @@ fun ContinuousScrollContent(
             }
     }
 
-    //观察页面数量的变化
+    // 初始定位（F3 加固）：三级定位决策见 ScrollInitialPositionPolicy。
+    // 定位失败（目标章尚未进入 mergedPages，典型于样式变更/模式切换后的重建窗口）不再静默放弃，
+    // mergedPages 每次变化（缺章被滚动加载补进列表）都会重试；成功才置位
     LaunchedEffect(mergedPages.size) {
-        if (mergedPages.isNotEmpty() && !hasScrolledToInitialPosition) {
-            //当前章节索引
-            val durChapterIndex = pageProvider.pageController.durChapterIndex
-            //当前章节下的页面索引
-            val durPageIndex = pageProvider.pageController.durPageIndex
-
-            // 在 _mergedPages 中的索引，找到上次的位置，
-            val globalPageIndex = pageProvider.findGlobalPageIndex(durChapterIndex, durPageIndex)
-            // 并滚动到该位置
-            if (globalPageIndex >= 0) {
-                lazyListState.scrollToItem(globalPageIndex)
+        if (mergedPages.isNotEmpty() && !initialPositionResolved) {
+            val target = ScrollInitialPositionPolicy.resolve(
+                mergedPages,
+                pageProvider.pageController.durChapterIndex,
+                pageProvider.pageController.durPageIndex
+            )
+            if (target >= 0) {
+                lazyListState.scrollToItem(target)
+                initialPositionResolved = true
             }
-            hasScrolledToInitialPosition = true
+        }
+    }
+
+    // 定位超时放弃（F3）：目标章在超时窗口内始终未进入列表（病态场景，如解析失败）时
+    // 接受现状并解除写回门控——"永不写回"比"写回错误位置"更危险。
+    // 列表为空时不放弃：空列表时观察者 collect 本就早返回，无写回风险，继续等待内容
+    LaunchedEffect(Unit) {
+        delay(INITIAL_POSITION_TIMEOUT_MS)
+        if (!initialPositionResolved && mergedPages.isNotEmpty()) {
+            Logger.w("ContinuousScrollContent: 初始定位超时放弃(${INITIAL_POSITION_TIMEOUT_MS}ms), chapter=${pageProvider.pageController.durChapterIndex}")
+            initialPositionResolved = true
         }
     }
 
@@ -545,7 +587,8 @@ fun ContinuousScrollContent(
                 firstVisibleIndex = lazyListState.firstVisibleItemIndex,
                 canScrollForward = lazyListState.canScrollForward,
                 canScrollBackward = lazyListState.canScrollBackward,
-                pageCount = mergedPages.size  // dirty flag: mergedPages 变化时重新触发评估
+                pageCount = mergedPages.size,  // dirty flag: mergedPages 变化时重新触发评估
+                positionResolved = initialPositionResolved  // F3 dirty flag: 定位置位即重发射，写回无迟滞恢复
             )
         }
             .debounce(100)
@@ -557,6 +600,19 @@ fun ContinuousScrollContent(
                 val newPageIndex = currentPageItem?.pageIndex ?: -1
                 pageProvider.currentScrollGlobalIndex = snapshot.firstVisibleIndex
                 Logger.d("ContinuousScrollContent: firstVisibleIndex=${snapshot.firstVisibleIndex}, chapter=$newChapterIndex, page=$newPageIndex")
+
+                // F3 R2 写回门控：初始定位未完成期间，列表可见位置不代表真实阅读位置——
+                // 禁止覆写 durChapterIndex/durPageIndex（既保护定位目标，又阻断错误 saveRead），
+                // 仅保留预加载评估；定位置位经 ScrollSnapshot.positionResolved 触发重发射后恢复正常逻辑。
+                // currentScrollGlobalIndex（上方）保持门控外：它服务 pendingJump 捕获比对，无阅读位置语义
+                if (!snapshot.positionResolved) {
+                    pageProvider.evaluatePreload(
+                        firstVisibleIndex = snapshot.firstVisibleIndex,
+                        canScrollForward = snapshot.canScrollForward,
+                        canScrollBackward = snapshot.canScrollBackward
+                    )
+                    return@collect
+                }
 
                 // 信息条页码槽：滚动模式实时喂数（currentPageItem 为 null 时以 -1/0 清空）
                 viewModel.updateInfoBarPageFromScroll(
@@ -614,7 +670,9 @@ fun ContinuousScrollContent(
 
     DisposableEffect(Unit) {
         onDispose {
-            if (currentVisibleChapter >= 0) {
+            // F3 R2：初始定位未完成时不写回——可见位置不代表真实阅读位置，
+            // 防止把 item 0 反推的章节/页码持久化（回归"回到第一章第一页"根因链）
+            if (initialPositionResolved && currentVisibleChapter >= 0) {
                 pageProvider.pageController.durChapterIndex = currentVisibleChapter
                 pageProvider.pageController.durPageIndex = currentVisiblePage
                 pageProvider.pageController.saveRead()
@@ -958,6 +1016,12 @@ private fun handleTap(
     mergedPages: List<ContinuousPageProvider.MergedPageItem>
 ) {
     if (handleAnnotationTap(offset, viewModel, pageProvider, lazyListState, mergedPages)) {
+        return
+    }
+
+    // 自动阅读运行中：单击接管全部区域，统一呼出常规菜单（方案 §7.5）
+    if (viewModel.isAutoReadActive) {
+        viewModel.pageController.clickCenter()
         return
     }
 
@@ -2138,5 +2202,54 @@ private fun drawAnnotationBackgrounds(
                 }
             }
         }
+    }
+}
+
+/** 初始定位超时放弃窗口（F3）：章节解析通常亚秒级，5s 已覆盖低端机慢解析；
+ *  超时后接受现状解除写回门控，避免"永不写回"拖垮正常的位置保存 */
+private const val INITIAL_POSITION_TIMEOUT_MS = 5_000L
+
+/**
+ * 自动阅读滚动驱动适配器（方案 §6）：匀速 scrollBy + 进度环取值 + 平均字宽测量。
+ * mergedPages 经 rememberUpdatedState 供给，避免持有过期列表。
+ */
+private class AutoReadScrollAdapterImpl(
+    private val lazyListState: LazyListState,
+    private val mergedPagesProvider: () -> List<ContinuousPageProvider.MergedPageItem>,
+    private val chapterSizeProvider: () -> Int,
+) : AutoReadScrollAdapter {
+
+    private var lastPxPerChar = 0f
+
+    override suspend fun scrollByPx(px: Float): Boolean {
+        if (px > 0f) lazyListState.scrollBy(px)
+        if (lazyListState.canScrollForward) return true
+        // 列表已见底：仅当末页确属全书最后一章末页时才算书末（与 LazyColumn "end_of_book"
+        // 尾项条件一致）；否则是下一章分页未就绪、mergedPages 尚未增长，返回 true 等待内容
+        // 到位后继续推进，避免章节边界处误停（代码审查 FIX-A）
+        val last = mergedPagesProvider().lastOrNull() ?: return true
+        return !(last.isChapterEnd && last.chapterIndex >= chapterSizeProvider() - 1)
+    }
+
+    override fun viewportHeightPx(): Float {
+        val info = lazyListState.layoutInfo
+        return (info.viewportEndOffset - info.viewportStartOffset).toFloat()
+    }
+
+    override fun verticalPxPerChar(): Float {
+        val viewport = viewportHeightPx()
+        if (viewport <= 0f) return lastPxPerChar
+        val page = mergedPagesProvider().getOrNull(lazyListState.firstVisibleItemIndex)?.page ?: return lastPxPerChar
+        var chars = 0
+        page.textLines.forEach { line -> chars += line.textChars.size }
+        if (chars > 0) lastPxPerChar = viewport / chars   //每字垂直步进=视口高/屏字数：整屏耗时=屏字数/速度×60s，与覆盖模式一致（真机验收修订）
+        return lastPxPerChar
+    }
+
+    /** 一页一圈：当前 item 滚过比例（item 即合并页，与翻页模式进度环语义对齐，方案 §7.3） */
+    override fun pageProgressFraction(): Float {
+        val viewport = viewportHeightPx()
+        if (viewport <= 0f) return 0f
+        return lazyListState.firstVisibleItemScrollOffset / viewport
     }
 }

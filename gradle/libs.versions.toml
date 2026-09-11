@@ -23,6 +23,7 @@ desugar_jdk_libs = "2.1.4"
 hiltAndroid = "2.60.1"
 hiltCompiler = "1.2.0"
 kotlin = "2.2.10"
+coroutinesTest = "1.10.2"
 coreKtx = "1.16.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -121,6 +122,7 @@ toaster = { module = "com.github.getActivity:Toaster", version.ref = "toaster" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 material-kolor = { group = "com.materialkolor", name = "material-kolor", version.ref = "materialKolor" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

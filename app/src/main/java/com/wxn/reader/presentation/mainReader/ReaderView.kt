@@ -55,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -76,6 +77,7 @@ import com.wxn.base.ext.toCompatibleArgb
 import com.wxn.base.util.Logger
 import com.wxn.base.util.ToastUtil
 import com.wxn.base.util.launchIO
+import com.wxn.bookread.ui.AutoReadTouchListener
 import com.wxn.bookread.ui.PageView
 import com.wxn.bookread.ui.TextPageFactory
 import com.wxn.reader.R
@@ -263,6 +265,8 @@ fun ReaderView(
                 .fillMaxSize()
         ) {
             if (readerPreferences.scroll != 6) {
+                // 自动阅读揭页分割线颜色：组合层取出，factory/update 直接引用（MaterialTheme.colorScheme 不可在非组合 lambda 内读取）
+                val autoPageDividerColor = MaterialTheme.colorScheme.primary.toArgb()
                 AndroidView(
                     factory = { context ->
                         PageView(context).apply {
@@ -296,6 +300,12 @@ fun ReaderView(
                             }
                             setSelectTextCallback(viewModel.pageController)
 
+                            // 自动阅读：手势冻结钩子 + 主题强调色分割线（方案 §5/§7.5）
+                            autoReadTouchListener = AutoReadTouchListener { down ->
+                                viewModel.onAutoReadTouch(down)
+                            }
+                            setAutoPageDividerColor(autoPageDividerColor)
+
                             // 修复：从连续垂直滚动(scroll==6)切换到其他翻页模式时，新创建的 PageView
                             // 需要主动触发内容显示。factory 依赖 onSizeChanged 异步触发 loadContent，
                             // 但时序竞态可能导致内容未及时显示（ContentTextView.drawPage 中 pageFactory 为 null 时不绘制）。
@@ -311,6 +321,9 @@ fun ReaderView(
                     modifier = Modifier.fillMaxSize(),
                     update = { view ->
                         Logger.d("ReaderView::update by AndroidView")
+
+                        // 自动阅读分割线颜色刷新（主题切换时重组 → update 重跑，审查 S4）
+                        view.setAutoPageDividerColor(autoPageDividerColor)
 
                         // 只在 book 对象改变时更新，避免每次重组都触发 loadContent
                         val currentBook = view.dataProvider?.book

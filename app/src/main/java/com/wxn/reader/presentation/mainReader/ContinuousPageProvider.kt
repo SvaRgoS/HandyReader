@@ -329,14 +329,14 @@ class ContinuousPageProvider(
      */
     data class MergedPageItem(
         val globalPageIndex: Int,
-        val chapterIndex: Int,
-        val pageIndex: Int,
+        override val chapterIndex: Int,
+        override val pageIndex: Int,
         val chapterPageSize: Int,
         val page: TextPage,
         val chapterTitle: String,
         val isChapterStart: Boolean = false,  // 是否是章节的第一页
         val isChapterEnd: Boolean = false     // 是否是章节的最后一页
-    )
+    ) : ScrollInitialPositionPolicy.PageRef   // F3：初始定位决策输入（字段名与接口吻合，零额外成员）
 
     /**
      * 根据全局页面索引获取页面项

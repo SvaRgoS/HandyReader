@@ -7,6 +7,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.TransitionDrawable
+import android.os.Looper
 import android.view.LayoutInflater
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -152,14 +153,23 @@ class ContentView(context: Context) : FrameLayout(context) {
 
     /****
      * 设置需要显示的TextPage内容
+     *
+     * 主线程调用时同步内联执行（自动提交翻页路径）：揭页遮罩撤除与内容切换同拍完成，
+     * 避免"旧页先绘制一帧再切新页"的竞态闪屏（方案 2026-09-07-plan-auto-read-acceptance-round2 §3.4）；
+     * IO 线程调用（章节异步解析后的 loadContent 回调）保持 post 到主线程，行为不变。
      */
     fun setContent(textPage: TextPage, resetPageOffset: Boolean = true) {
         Logger.i("ContentView::setContent::textPage.pageSize=${textPage.pageSize}")
-        Coroutines.mainScope().launchMain {
+        val apply: () -> Unit = {
             if (resetPageOffset) {
                 resetPageOffset()
             }
             binding.contentTextView.setContent(textPage)
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            apply()
+        } else {
+            Coroutines.mainScope().launchMain { apply() }
         }
     }
 

@@ -127,6 +127,19 @@
     <string name="scroll_mode">滚动模式</string>
     <string name="dual_column">双列显示</string>
     <string name="volume_key_page_turning">音量键翻页</string>
+    <string name="auto_reading">自动阅读</string>
+    <string name="auto_read_speed">阅读速度</string>
+    <string name="auto_read_chars_per_min">字/分钟</string>
+    <string name="auto_read_est_page_seconds">当前页约 %1$d 秒</string>
+    <string name="close_auto_reading">关闭自动翻页</string>
+    <string name="auto_read_stopped">已停止自动阅读</string>
+    <string name="auto_read_mode">翻页方式</string>
+    <string name="auto_read_mode_scroll">自动滚动</string>
+    <string name="auto_read_mode_cover">覆盖翻页</string>
+    
+<string name="auto_read_fab_guide_title">自动阅读已开启</string>
+    
+<string name="auto_read_fab_guide_description">点按可暂停或继续；长按退出自动阅读；拖动到屏幕边缘可贴边收起</string>
     <string name="reading_progression">阅读方向</string>
     <string name="tap_navigation">点击导航</string>
     <string name="left_to_right">从左到右</string>

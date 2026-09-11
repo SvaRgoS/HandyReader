@@ -129,6 +129,19 @@
     <string name="scroll_mode">स्क्रॉल मोड</string>
     <string name="dual_column">दोहरा स्तंभ</string>
     <string name="volume_key_page_turning">वॉल्यूम कुंजियों से पेज बदलें</string>
+    <string name="auto_reading">स्वतः पढ़ें</string>
+    <string name="auto_read_speed">पढ़ने की गति</string>
+    <string name="auto_read_chars_per_min">अक्षर/मिनट</string>
+    <string name="auto_read_est_page_seconds">प्रति पृष्ठ ~%1$d से</string>
+    <string name="close_auto_reading">स्वतः पढ़ना बंद करें</string>
+    <string name="auto_read_stopped">स्वतः पढ़ना बंद हो गया</string>
+    <string name="auto_read_mode">पढ़ने का मोड</string>
+    <string name="auto_read_mode_scroll">स्वतः स्क्रॉल</string>
+    <string name="auto_read_mode_cover">पेज कवर</string>
+    
+<string name="auto_read_fab_guide_title">स्वतः पढ़ें चालू है</string>
+    
+<string name="auto_read_fab_guide_description">रोकने या जारी रखने के लिए टैप करें; स्वतः पढ़ना बंद करने के लिए देर तक दबाएं; किनारे पर समेटने के लिए स्क्रीन के किनारे की ओर खींचें</string>
     <string name="reading_progression">पठन दिशा</string>
     <string name="tap_navigation">टैप नेविगेशन</string>
     <string name="left_to_right">बाएँ से दाएँ</string>

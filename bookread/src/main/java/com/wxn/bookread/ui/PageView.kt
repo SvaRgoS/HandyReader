@@ -220,12 +220,22 @@ class PageView : FrameLayout, IDataSource, PageCallback {
 
     private val autoPageRect by lazy { Rect() }
 
+    private val autoPageDstRect by lazy { RectF() }
+
     private val autoPagePint by lazy {
         Paint().apply {
 //            color = context.accentColor
             color = "#FFAD1457".toColorInt()
         }
     }
+
+    /** 自动阅读揭页分割线颜色（由 Compose 层注入 MaterialTheme.colorScheme.primary） */
+    fun setAutoPageDividerColor(color: Int) {
+        autoPagePint.color = color
+    }
+
+    /** 自动阅读手势冻结钩子（按下=true 冻结推进；抬起=false） */
+    var autoReadTouchListener: AutoReadTouchListener? = null
 
     private var clickTurnPage: Boolean = true //从配置里得到的控制变量
     private var clickAllNext: Boolean = false //从配置里得到的控制变量
@@ -317,15 +327,20 @@ class PageView : FrameLayout, IDataSource, PageCallback {
         super.dispatchDraw(canvas)
         pageDelegate?.onDraw(canvas)
         if (!isInEditMode && dataProvider?.isAutoPage == true && !isScroll) {            //非编辑模式，非滚动中， 自动阅读中
-            nextPage.screenshot()?.let {                                    //将下一页转换成bitmap，然后绘制到canvas上
-                val bottom = dataProvider?.autoPageProgress ?: return
-                autoPageRect.set(0, 0, width, bottom)
-                canvas.drawBitmap(it, autoPageRect, autoPageRect, null)     //将下一页绘制到canvas上
-                canvas.drawRect(                                            //沿着底部绘制一条分割线
+            nextPage.screenshot()?.let { bmp ->                                          //将下一页转换成bitmap，然后绘制到canvas上
+                val fraction = dataProvider?.autoPageProgressFraction ?: return
+                if (fraction <= 0f) return@let
+                // 覆盖方向（真机验收修订）：下一页自屏幕【顶部】向下覆盖当前页——覆盖推进速率=阅读速度，
+                // 当前页未读的下部内容保持可见直至提交；自底部向上揭出会先盖住正在阅读的下半页，已废弃。
+                val revealed = (height * fraction.coerceIn(0f, 1f)).toInt().coerceAtLeast(1)
+                autoPageRect.set(0, 0, width, revealed)                                  //src：下一页顶部 revealed 高度
+                autoPageDstRect.set(0f, 0f, width.toFloat(), revealed.toFloat())
+                canvas.drawBitmap(bmp, autoPageRect, autoPageDstRect, null)              //揭出区贴屏幕顶部
+                canvas.drawRect(                                                         //接缝分割线
                     0f,
-                    bottom.toFloat() - 1,
+                    revealed.toFloat(),
                     width.toFloat(),
-                    bottom.toFloat(),
+                    revealed.toFloat() + 1f,
                     autoPagePint
                 )
             }
@@ -349,6 +364,10 @@ class PageView : FrameLayout, IDataSource, PageCallback {
      */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> autoReadTouchListener?.onTouch(true)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> autoReadTouchListener?.onTouch(false)
+        }
         dataProvider?.screenOffTimerStart()
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -677,6 +696,12 @@ class PageView : FrameLayout, IDataSource, PageCallback {
                     }
                 }
             }
+        }
+
+        // 自动阅读运行中：单击接管全部点击区域，统一呼出常规菜单（方案 §7.5）
+        if (dataProvider?.isAutoPage == true) {
+            dataProvider?.clickCenter()
+            return true
         }
 
         // 根据点击区域模式决定使用哪个区域

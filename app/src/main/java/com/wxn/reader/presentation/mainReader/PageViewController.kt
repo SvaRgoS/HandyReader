@@ -184,7 +184,7 @@ class PageViewController @OptIn(UnstableApi::class)
     private var loadContentJob: Job? = null
 
     override var isAutoPage: Boolean = false
-    override var autoPageProgress: Int = 0
+    override var autoPageProgressFraction: Float = 0f
 
     override var pageFactory: TextPageFactory? = null
 
@@ -1119,6 +1119,15 @@ class PageViewController @OptIn(UnstableApi::class)
         return durPageIndex
     }
 
+    /**
+     * 自动阅读装载守卫（方案 §5.3）：当前章正文未就绪或与 durChapterIndex 不一致时暂停推进。
+     * 注意：TextChapter 的章节索引字段实名是 position（非 chapterIndex）。
+     */
+    fun isChapterLoading(): Boolean {
+        val chapter = curTextChapter ?: return true
+        return chapter.position != durChapterIndex
+    }
+
     fun moveToNextPage() {
         durPageIndex++
         callBack?.upContent()
@@ -1565,7 +1574,7 @@ class PageViewController @OptIn(UnstableApi::class)
         loadContentJob?.cancel()  // 取消正在进行的加载任务
         loadContentJob = null
         isAutoPage = false
-        autoPageProgress = 0
+        autoPageProgressFraction = 0f
         pageFactory = null
         isScroll = false
         searchedLocators = emptyList()

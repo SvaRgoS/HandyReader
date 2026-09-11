@@ -126,4 +126,18 @@ class InfoBarSpecTest {
         assertNull(InfoBarSpec.parseBattery(-1, 100))
         assertNull(InfoBarSpec.parseBattery(50, 0))
     }
+
+    // ---- 电池图形填充比例 ----
+    @Test
+    fun `batteryFillFraction maps percent to 0-1`() {
+        assertEquals(0f, InfoBarSpec.batteryFillFraction(0), 1e-6f)
+        assertEquals(0.5f, InfoBarSpec.batteryFillFraction(50), 1e-6f)
+        assertEquals(1f, InfoBarSpec.batteryFillFraction(100), 1e-6f)
+    }
+
+    @Test
+    fun `batteryFillFraction clamps out of range input`() {
+        assertEquals(0f, InfoBarSpec.batteryFillFraction(-5), 1e-6f)
+        assertEquals(1f, InfoBarSpec.batteryFillFraction(120), 1e-6f)
+    }
 }

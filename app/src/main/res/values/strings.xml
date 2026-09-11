@@ -128,6 +128,19 @@
     <string name="scroll_mode">Scroll Mode</string>
     <string name="dual_column">Dual Column</string>
     <string name="volume_key_page_turning">Volume Key Page Turning</string>
+    <string name="auto_reading">Auto Read</string>
+    <string name="auto_read_speed">Reading Speed</string>
+    <string name="auto_read_chars_per_min">chars/min</string>
+    <string name="auto_read_est_page_seconds">~%1$d s per page</string>
+    <string name="close_auto_reading">Stop Auto-Read</string>
+    <string name="auto_read_stopped">Auto-read stopped</string>
+    <string name="auto_read_mode">Auto-Read Mode</string>
+    <string name="auto_read_mode_scroll">Auto Scroll</string>
+    <string name="auto_read_mode_cover">Page Cover</string>
+    
+<string name="auto_read_fab_guide_title">Auto Read enabled</string>
+    
+<string name="auto_read_fab_guide_description">Tap to pause or resume; long press to exit Auto Read; drag to the screen edge to dock it</string>
     <string name="tap_navigation">Tap Navigation</string>
     <string name="reading_progression">Reading Progression</string>
     <string name="left_to_right">Left to Right</string>

@@ -128,6 +128,19 @@
     <string name="scroll_mode">Modo Desplazamiento</string>
     <string name="dual_column">Doble columna</string>
     <string name="volume_key_page_turning">Cambio de página con teclas de volumen</string>
+    <string name="auto_reading">Lectura automática</string>
+    <string name="auto_read_speed">Velocidad de lectura</string>
+    <string name="auto_read_chars_per_min">caracteres/min</string>
+    <string name="auto_read_est_page_seconds">~%1$d s por página</string>
+    <string name="close_auto_reading">Detener lectura automática</string>
+    <string name="auto_read_stopped">Lectura automática detenida</string>
+    <string name="auto_read_mode">Modo de paso</string>
+    <string name="auto_read_mode_scroll">Desplazamiento automático</string>
+    <string name="auto_read_mode_cover">Cubrir página</string>
+    
+<string name="auto_read_fab_guide_title">Lectura automática activada</string>
+    
+<string name="auto_read_fab_guide_description">Toca para pausar o reanudar; mantén pulsado para salir de la lectura automática; arrastra al borde de la pantalla para acoplarlo</string>
     <string name="reading_progression">Dirección de lectura</string>
     <string name="tap_navigation">Navegación por Toque</string>
     <string name="left_to_right">De Izquierda a Derecha</string>

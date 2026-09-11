@@ -128,6 +128,19 @@
     <string name="scroll_mode">Scroll-Modus</string>
     <string name="dual_column">Zweispaltig</string>
     <string name="volume_key_page_turning">Seitenumblättern mit Lautstärketasten</string>
+    <string name="auto_reading">Automatisches Lesen</string>
+    <string name="auto_read_speed">Lesegeschwindigkeit</string>
+    <string name="auto_read_chars_per_min">Zeichen/Min.</string>
+    <string name="auto_read_est_page_seconds">ca. %1$d s pro Seite</string>
+    <string name="close_auto_reading">Automatisches Lesen beenden</string>
+    <string name="auto_read_stopped">Automatisches Lesen beendet</string>
+    <string name="auto_read_mode">Umblättermodus</string>
+    <string name="auto_read_mode_scroll">Automatisches Scrollen</string>
+    <string name="auto_read_mode_cover">Seitenüberblendung</string>
+    
+<string name="auto_read_fab_guide_title">Automatisches Lesen aktiviert</string>
+    
+<string name="auto_read_fab_guide_description">Tippen, um zu pausieren oder fortzusetzen; lang drücken, um das automatische Lesen zu beenden; an den Bildschirmrand ziehen, um anzudocken</string>
     <string name="reading_progression">Leserichtung</string>
     <string name="tap_navigation">Tippen-Navigation</string>
     <string name="left_to_right">Von links nach rechts</string>

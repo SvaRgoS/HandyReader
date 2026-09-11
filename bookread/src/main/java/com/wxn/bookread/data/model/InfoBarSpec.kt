@@ -38,6 +38,11 @@ object InfoBarSpec {
     /** 预留时信息条与正文之间的呼吸间距 */
     const val RESERVE_GAP_DP = 8
 
+    /** 电量槽电池图形总尺寸与内部文字字号（绘制细节常量在 ReaderInfoBar.kt） */
+    const val BATTERY_TOTAL_WIDTH_DP = 27
+    const val BATTERY_HEIGHT_DP = 14
+    const val BATTERY_TEXT_SP = 8
+
     /** 任一槽位有内容才渲染（空配置等价关闭） */
     fun isEnabled(hide: Boolean, slots: InfoBarSlots): Boolean = !hide && slots.hasContent()
 
@@ -87,4 +92,7 @@ object InfoBarSpec {
         if (scale <= 0 || level < 0) return null
         return (level * 100 / scale).coerceIn(0, 100)
     }
+
+    /** 电量填充比例（0f..1f），入参越界收敛，供电池图形 Canvas 填充宽度与单测使用 */
+    fun batteryFillFraction(percent: Int): Float = percent.coerceIn(0, 100) / 100f
 }

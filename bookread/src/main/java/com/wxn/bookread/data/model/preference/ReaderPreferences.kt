@@ -84,4 +84,16 @@ data class ReaderPreferences(
     val brightness: Float = 0.0f,                   //用户设置的亮度值 0.0~1.0
     val brightnessSet: Boolean = false,             //用户是否手动设置过亮度
     val columns: Int = 1,                //双列显示开关（全局阅读设置，与 scroll/leftHandedMode 同组，不进 per-book override）
-)
+    val autoReadSpeed: Int = AUTO_READ_SPEED_DEFAULT,          //自动阅读速度（字/分钟），1 屏内容所花时间=字数/该值*60 秒
+    // v2 裁决（2026-09-08 仲裁方案 §3.4）：autoReadMode 不再持久化——由 VM 层按（scroll+columns）现算派生
+) {
+    companion object {
+        /** 自动阅读速度（字/分钟）范围与默认（2026-09-08 方案 A）。上限对标竞品天花板（Legado 下限 2 秒/屏量级），
+         *  下限支持极慢陪伴式阅读；UI 滑杆（AutoReadSettingsSheet）与持久化读写钳制（ReaderPreferencesUtil）共用。 */
+        const val AUTO_READ_SPEED_MIN = 50
+        const val AUTO_READ_SPEED_MAX = 3000
+        const val AUTO_READ_SPEED_DEFAULT = 300
+
+        fun coerceAutoReadSpeed(v: Int): Int = v.coerceIn(AUTO_READ_SPEED_MIN, AUTO_READ_SPEED_MAX)
+    }
+}

@@ -130,6 +130,19 @@
     <string name="scroll_mode">Режим прокрутки</string>
     <string name="dual_column">Две колонки</string>
     <string name="volume_key_page_turning">Перелистывание страниц громкостью</string>
+    <string name="auto_reading">Авточтение</string>
+    <string name="auto_read_speed">Скорость чтения</string>
+    <string name="auto_read_chars_per_min">знаков/мин</string>
+    <string name="auto_read_est_page_seconds">~%1$d с на страницу</string>
+    <string name="close_auto_reading">Остановить авточтение</string>
+    <string name="auto_read_stopped">Авточтение остановлено</string>
+    <string name="auto_read_mode">Режим чтения</string>
+    <string name="auto_read_mode_scroll">Автопрокрутка</string>
+    <string name="auto_read_mode_cover">Перекрытие страницы</string>
+    
+<string name="auto_read_fab_guide_title">Авточтение включено</string>
+    
+<string name="auto_read_fab_guide_description">Коснитесь, чтобы приостановить или продолжить; удержите, чтобы выйти из авточтения; перетащите к краю экрана, чтобы прикрепить кнопку</string>
     <string name="reading_progression">Направление чтения</string>
     <string name="tap_navigation">Навигация по нажатию</string>
     <string name="left_to_right">Слева направо</string>

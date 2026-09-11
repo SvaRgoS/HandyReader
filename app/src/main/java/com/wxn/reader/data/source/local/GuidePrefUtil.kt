@@ -20,6 +20,7 @@ class GuidePrefUtil @Inject constructor(context: Context) {
     companion object {
         val IS_HOME_FAB_GUIDE_SHOWN = booleanPreferencesKey("is_home_fab_guide_shown")
         val IS_SEARCH_FAB_GUIDE_SHOWN = booleanPreferencesKey("is_search_fab_guide_shown")
+        val IS_AUTO_READ_FAB_GUIDE_SHOWN = booleanPreferencesKey("is_auto_read_fab_guide_shown")
         val IS_PER_BOOK_OVERRIDE_TIP_SHOWN = booleanPreferencesKey("is_per_book_override_tip_shown")
         val NEEDS_LEGACY_CACHE_CLEANUP = booleanPreferencesKey("needs_legacy_cache_cleanup")
         val OPDS_FIRST_CHOICE_MADE = booleanPreferencesKey("opds_first_choice_made")
@@ -33,6 +34,7 @@ class GuidePrefUtil @Inject constructor(context: Context) {
         GuidePreferences(
             isHomeFabGuideShown = preferences[IS_HOME_FAB_GUIDE_SHOWN] ?: false,
             isSearchFabGuideShown = preferences[IS_SEARCH_FAB_GUIDE_SHOWN] ?: false,
+            isAutoReadFabGuideShown = preferences[IS_AUTO_READ_FAB_GUIDE_SHOWN] ?: false,
             needsLegacyCacheCleanup = preferences[NEEDS_LEGACY_CACHE_CLEANUP] ?: true,
             hasOpdsFirstDownloadChoiceMade = preferences[OPDS_FIRST_CHOICE_MADE] ?: false,
             opdsDownloadLocation = preferences[OPDS_DOWNLOAD_LOCATION] ?: "app_internal",
@@ -57,6 +59,18 @@ class GuidePrefUtil @Inject constructor(context: Context) {
     suspend fun setSearchFabGuideShown() {
         dataStore.edit { preferences ->
             preferences[IS_SEARCH_FAB_GUIDE_SHOWN] = true
+        }
+    }
+
+    /** 自动阅读 FAB 首次引导（真机验收第二轮 P3）：是否已展示过。 */
+    suspend fun isAutoReadFabGuideShown(): Boolean {
+        return guidePrefsFlow.first().isAutoReadFabGuideShown
+    }
+
+    /** 自动阅读 FAB 首次引导：标记已展示。 */
+    suspend fun setAutoReadFabGuideShown() {
+        dataStore.edit { preferences ->
+            preferences[IS_AUTO_READ_FAB_GUIDE_SHOWN] = true
         }
     }
 

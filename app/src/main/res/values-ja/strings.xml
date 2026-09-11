@@ -127,6 +127,19 @@
     <string name="scroll_mode">スクロールモード</string>
     <string name="dual_column">二段組</string>
     <string name="volume_key_page_turning">音量キーでページめくり</string>
+    <string name="auto_reading">自動読書</string>
+    <string name="auto_read_speed">読書速度</string>
+    <string name="auto_read_chars_per_min">字/分</string>
+    <string name="auto_read_est_page_seconds">現在のページ 約 %1$d 秒</string>
+    <string name="close_auto_reading">自動めくりを停止</string>
+    <string name="auto_read_stopped">自動読書を停止しました</string>
+    <string name="auto_read_mode">めくり方式</string>
+    <string name="auto_read_mode_scroll">自動スクロール</string>
+    <string name="auto_read_mode_cover">カバーめくり</string>
+    
+<string name="auto_read_fab_guide_title">自動読書が有効になりました</string>
+    
+<string name="auto_read_fab_guide_description">タップで一時停止・再開、長押しで自動読書を終了、画面端へドラッグすると端に寄せて収納できます</string>
     <string name="reading_progression">読む方向</string>
     <string name="tap_navigation">タップナビゲーション</string>
     <string name="left_to_right">左から右</string>
