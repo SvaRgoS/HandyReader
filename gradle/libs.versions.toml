@@ -51,6 +51,7 @@ workVersion = "2.10.0"
 material3 = "1.4.0"
 materialKolor = "2.1.1"
 robolectric = "4.14.1"
+mockitoCore = "5.14.2"
 
 [libraries]
 aboutlibraries-compose = { module = "com.mikepenz:aboutlibraries-compose", version.ref = "aboutlibrariesCore" }
@@ -122,6 +123,7 @@ toaster = { module = "com.github.getActivity:Toaster", version.ref = "toaster" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 material-kolor = { group = "com.materialkolor", name = "material-kolor", version.ref = "materialKolor" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockitoCore" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 
 [plugins]

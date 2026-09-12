@@ -62,36 +62,59 @@ public class BaseTextToSpeechEngine implements TextToSpeechEngine {
     void onTtsInit(int status, Context context) {
         int finalStatus = status;
         if (status == TextToSpeech.SUCCESS) {
-            // 检查请求的语言是否支持
-            int languageAvailable = mTextToSpeech.setLanguage(mLocale);
-            if (!isLanguageAvailable(languageAvailable)) {
-                Logger.INSTANCE.w("BaseTextToSpeechEngine: Language " + mLocale + " not available, falling back to default");
-                // 尝试使用默认语言
-                Locale defaultLocale = mTextToSpeech.getDefaultLanguage();
-                if (defaultLocale != null) {
+            try {
+                // 检查请求的语言是否支持
+                int languageAvailable = mTextToSpeech.setLanguage(mLocale);
+                if (!isLanguageAvailable(languageAvailable)) {
+                    Logger.INSTANCE.w("BaseTextToSpeechEngine: Language " + mLocale + " not available, falling back to default");
+                    // 尝试使用默认语言。已知缺陷（issue 680d19a3）：部分劣质 TTS 引擎返回含
+                    // null 分量的数组，libcore 的 Locale 构造器对 null 分量直接抛 NPE，
+                    // 该异常沿框架回调链逸出会导致崩溃，故必须在此防御。
+                    Locale defaultLocale = null;
+                    try {
+                        defaultLocale = mTextToSpeech.getDefaultLanguage();
+                    } catch (Exception e) {
+                        Logger.INSTANCE.w("BaseTextToSpeechEngine: getDefaultLanguage threw, fallback to Locale.getDefault(): " + e);
+                    }
+                    // getDefaultLanguage 抛异常或返回 null 时，用系统默认语言兜底
+                    if (defaultLocale == null) {
+                        defaultLocale = Locale.getDefault();
+                    }
                     mLocale = defaultLocale;
                     languageAvailable = mTextToSpeech.setLanguage(defaultLocale);
                 }
-            }
 
-            // 语言仍不可用 → 上报初始化失败，避免静默无声音
-            if (!isLanguageAvailable(languageAvailable)) {
-                Logger.INSTANCE.e("BaseTextToSpeechEngine: no available TTS language for " + mLocale);
-                finalStatus = TextToSpeech.ERROR;
-            } else {
-                mTtsProgressListener = new TtsProgressListener(context, mTtsCallbacks);
-                mTextToSpeech.setOnUtteranceProgressListener(mTtsProgressListener);
-                mTextToSpeech.setPitch(mTtsPitch);
-                mTextToSpeech.setSpeechRate(mTtsRate);
+                // 语言仍不可用 → 上报初始化失败，避免静默无声音
+                if (!isLanguageAvailable(languageAvailable)) {
+                    Logger.INSTANCE.e("BaseTextToSpeechEngine: no available TTS language for " + mLocale);
+                    finalStatus = TextToSpeech.ERROR;
+                } else {
+                    mTtsProgressListener = new TtsProgressListener(context, mTtsCallbacks);
+                    mTextToSpeech.setOnUtteranceProgressListener(mTtsProgressListener);
+                    mTextToSpeech.setPitch(mTtsPitch);
+                    mTextToSpeech.setSpeechRate(mTtsRate);
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    voice = resolveVoiceToApply(voice, mTextToSpeech.getDefaultVoice());
-                    if (voice != null) {
-                        mTextToSpeech.setVoice(voice);
-                    } else {
-                        Logger.INSTANCE.w("BaseTextToSpeechEngine: default voice is null, skip setVoice; using engine default");
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        Voice defaultVoice = null;
+                        try {
+                            defaultVoice = mTextToSpeech.getDefaultVoice();
+                        } catch (Exception e) {
+                            Logger.INSTANCE.w("BaseTextToSpeechEngine: getDefaultVoice threw, skip setVoice: " + e);
+                        }
+                        voice = resolveVoiceToApply(voice, defaultVoice);
+                        if (voice != null) {
+                            mTextToSpeech.setVoice(voice);
+                        } else {
+                            Logger.INSTANCE.w("BaseTextToSpeechEngine: default voice is null, skip setVoice; using engine default");
+                        }
                     }
                 }
+            } catch (Throwable t) {
+                // 外层兜底：onTtsInit 由框架在主线程直接回调，任何异常逸出都会崩溃
+                // （如 setLanguage 的 DeadObjectException、init/shutdown 竞态）。
+                // 降级为 init 失败上报，保证 listener 恰好回调一次。
+                Logger.INSTANCE.e("BaseTextToSpeechEngine: onTtsInit unexpected error: " + t);
+                finalStatus = TextToSpeech.ERROR;
             }
         }
 
@@ -254,6 +277,10 @@ public class BaseTextToSpeechEngine implements TextToSpeechEngine {
     public List<Voice> getSupportedVoices() {
         if (mTextToSpeech != null && Build.VERSION.SDK_INT >= 23) {
             Set<Voice> voices = mTextToSpeech.getVoices();
+            if (voices == null) {
+                // 部分引擎 getVoices() 返回 null，避免 NPE
+                return new ArrayList<>(0);
+            }
             ArrayList<Voice> voicesList = new ArrayList<>(voices.size());
             voicesList.addAll(voices);
             return voicesList;
