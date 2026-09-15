@@ -1,5 +1,6 @@
 package com.wxn.reader.data.dto
 
+import com.wxn.bookread.data.model.preference.BookColorMode
 import com.wxn.bookread.data.model.preference.ReaderPreferences
 
 /**
@@ -40,6 +41,7 @@ fun ReaderPreferences.toPerBookSnapshot(bookId: Long, themeId: String): PerBookT
         titleSize = titleSize,
         titleTopSpacing = titleTopSpacing,
         titleBottomSpacing = titleBottomSpacing,
+        bookColorMode = bookColorMode.name,
         userTextAlign = userTextAlign,
         forceAlignOverride = if (forceAlignOverride) 1 else 0,
         createdAt = System.currentTimeMillis(),
@@ -49,7 +51,7 @@ fun ReaderPreferences.toPerBookSnapshot(bookId: Long, themeId: String): PerBookT
 /**
  * loadSnapshot：将 per-book 快照应用到当前偏好（保留非主题字段），返回完整的 effective 偏好（对齐 `toReaderPreferences`）。
  *
- * 17 个主题字段从快照读取；其余字段（brightness/colorHistory/keepScreenOn 等非主题字段）从 [current] 保留。
+ * 18 个主题字段从快照读取；其余字段（brightness/colorHistory/keepScreenOn 等非主题字段）从 [current] 保留。
  *
  * @param current 提供非主题字段的保留值（通常为全局 rawReaderPrefsFlow 当前值）
  */
@@ -71,6 +73,9 @@ fun PerBookThemeOverrideEntity.toReaderPreferences(current: ReaderPreferences): 
         titleSize = titleSize,
         titleTopSpacing = titleTopSpacing,
         titleBottomSpacing = titleBottomSpacing,
+        // AS-1 P2：三态开关随快照恢复；损坏值回退 current（同 ReaderThemeConfigMapper 防御）
+        bookColorMode = runCatching { BookColorMode.valueOf(bookColorMode) }.getOrNull()
+            ?: current.bookColorMode,
         userTextAlign = userTextAlign,
         forceAlignOverride = forceAlignOverride != 0,
     )

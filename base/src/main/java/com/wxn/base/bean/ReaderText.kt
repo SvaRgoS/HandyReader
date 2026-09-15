@@ -231,8 +231,9 @@ sealed class ReaderText {
             val innerStyleList = ArrayList<InlineStyle>()   // 子区间样式收集
 
             annotations.forEach { tag ->
+                val effectivePairs = expandStylePairs(tag.paramsPairs())
                 if (tag.start == 0 && tag.end >= line.length - 1) {
-                    tag.paramsPairs().forEach { kv ->
+                    effectivePairs.forEach { kv ->
                         when (kv.first) {
                             "font-size" -> {
                                 parsedCss.fontSize = CssUnit.format(kv.second.trim())
@@ -419,12 +420,12 @@ sealed class ReaderText {
                     var fontScale : Float? = null
                     var color : String? = null
                     var verticalAlign: CssVerticalAlign? = null
-                    tag.paramsPairs().forEach { kv ->
+                    effectivePairs.forEach { kv ->
                         when(kv.first) {
                             "font-size" -> {
                                 val cssUnit = CssUnit.format(kv.second.trim())
                                 if (cssUnit.isEm() && cssUnit.value > 0f) {
-                                    fontScale = cssUnit.value.coerceIn(MIN_INLINE_SCALE, MAX_INLINE_SCALE)
+                                    fontScale = cssUnit.value.coerceIn(CssUnit.MIN_FONT_SCALE, CssUnit.MAX_FONT_SCALE)
                                 }
                             }
                             "color" -> {
@@ -553,12 +554,6 @@ sealed class ReaderText {
                 }
                 return null
             }
-
-        companion object {
-            /** F1:子区间字号倍数 clamp 范围,防御损坏 EPUB(0.5em ~ 5.0em) */
-            private const val MIN_INLINE_SCALE = 0.5f
-            private const val MAX_INLINE_SCALE = 5.0f
-        }
     }
 
     var textCssInfo = TextCssInfo()
@@ -577,4 +572,21 @@ sealed class ReaderText {
         val width: Int,     //图片宽
         val height: Int     //图片高
     ) : ReaderText()
+}
+
+/**
+ * AS-1 §3.4：内联 style 声明展开为键值对，后置追加到 params 对之后实现「内联 > 作者规则」级联。
+ * 规约：按 ; 拆声明、按首个 : 拆键值、两端 trim、键/值空则丢弃（畸形容错，不崩溃不产错对）；
+ * 无 style 键或值为空 → 原样返回 pairs（零开销路径）。
+ */
+private fun expandStylePairs(pairs: List<Pair<String, String>>): List<Pair<String, String>> {
+    val styleValue = pairs.firstOrNull { it.first == "style" }?.second ?: return pairs
+    val stylePairs = styleValue.split(";").mapNotNull { decl ->
+        val idx = decl.indexOf(':')
+        if (idx <= 0) return@mapNotNull null
+        val k = decl.substring(0, idx).trim()
+        val v = decl.substring(idx + 1).trim()
+        if (k.isEmpty() || v.isEmpty()) null else k to v
+    }
+    return if (stylePairs.isEmpty()) pairs else pairs + stylePairs
 }

@@ -150,6 +150,10 @@
     <string name="color_settings">颜色设置</string>
     <string name="background_color">背景颜色或图片</string>
     <string name="text_color">文本颜色</string>
+    <string name="book_color_mode">书籍字体颜色</string>
+    <string name="book_color_mode_smart">智能对比</string>
+    <string name="book_color_mode_theme">跟随主题</string>
+    <string name="book_color_mode_book">跟随书籍</string>
     <string name="select_color">选择 %1$s 颜色</string>
     <string name="no_books_in">%1$s 中没有书籍</string>
     <string name="welcome_to_uread">欢迎使用随阅</string>

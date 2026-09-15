@@ -151,6 +151,10 @@
     <string name="color_settings">Configurações de Cor</string>
     <string name="background_color">Cor de fundo ou imagem</string>
     <string name="text_color">Cor do Texto</string>
+    <string name="book_color_mode">Cor da fonte do livro</string>
+    <string name="book_color_mode_smart">Inteligente</string>
+    <string name="book_color_mode_theme">Seguir tema</string>
+    <string name="book_color_mode_book">Seguir livro</string>
     <string name="select_color">Selecionar Cor de %1$s</string>
     <string name="no_books_in">Sem livros em %1$s</string>
     <string name="welcome_to_uread">Bem-vindo ao HandyReader!</string>

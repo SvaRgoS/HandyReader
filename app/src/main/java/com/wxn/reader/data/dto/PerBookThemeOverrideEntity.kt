@@ -14,12 +14,14 @@ import androidx.room.Index
  *
  * 复合主键 `(bookId, themeId)`，保证同一书不同主题各有独立快照；切主题时各主题配置互不干扰。
  *
- * 字段范围 = reader_theme_configs 纳管后全部视觉字段（17 个）：
- * 15 视觉/排版字段 + userTextAlign + forceAlignOverride。明确排除 `fontBold`/`wordSpacing`
+ * 字段范围 = reader_theme_configs 纳管后全部视觉字段（18 个）：
+ * 15 视觉/排版字段 + bookColorMode + userTextAlign + forceAlignOverride（bookColorMode 为 AS-1 P2 新增，DB v12）。
+ * 明确排除 `fontBold`/`wordSpacing`
  * （ReaderPreferences 中已 `@Deprecated("never used")`，无 UI 入口、无渲染读取，属死字段）。
  *
  * 类型转换列：[forceAlignOverride] 是 `Int`（0/1，对应模型 Boolean），写入侧
- * `if (value) 1 else 0`，读取侧见 [toReaderPreferences] 的 `!= 0`。
+ * `if (value) 1 else 0`，读取侧见 [toReaderPreferences] 的 `!= 0`；[bookColorMode] 是
+ * 枚举 name 字符串（SMART/THEME/BOOK），读取侧 runCatching 防御损坏行（见 [toReaderPreferences]）。
  *
  * @param bookId 书籍 id（复合主键之一 + 外键 → books.id ON DELETE CASCADE）
  * @param themeId 主题 id（复合主键之一）
@@ -58,6 +60,7 @@ data class PerBookThemeOverrideEntity(
     val titleSize: Double,
     val titleTopSpacing: Double,
     val titleBottomSpacing: Double,
+    val bookColorMode: String = "SMART",
     val userTextAlign: Int,
     val forceAlignOverride: Int,
     val createdAt: Long,
@@ -84,6 +87,7 @@ data class PerBookThemeOverrideEntity(
         titleSize = titleSize,
         titleTopSpacing = titleTopSpacing,
         titleBottomSpacing = titleBottomSpacing,
+        bookColorMode = bookColorMode,
         userTextAlign = userTextAlign,
         forceAlignOverride = forceAlignOverride,
         updatedAt = updatedAt,

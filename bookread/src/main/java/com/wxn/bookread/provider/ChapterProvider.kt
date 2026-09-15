@@ -23,6 +23,7 @@ import com.wxn.base.bean.TextTag
 import com.wxn.base.ext.isContentPath
 import com.wxn.base.ext.statusBarHeight
 import com.wxn.base.ext.toStringArray
+import com.wxn.base.unit.toFontScale
 import com.wxn.base.util.Coroutines
 import com.wxn.base.util.Logger
 import com.wxn.base.util.PathUtil
@@ -625,11 +626,7 @@ object ChapterProvider {
         contentPaint.textSize = (prefs.fontSize.toFloat() ?: 1.0f) * BASE_FONT_SIZE
         contentPaint.isAntiAlias = true
 
-        //<a>标签的Paint
-        aPaint.color = Color.BLUE
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
-            aPaint.underlineColor = Color.BLUE
-        }
+        //<a>标签的Paint（颜色由 RenderResources.resolveAdaptiveColors 唯一写入，AD-1 §3.3）
         aPaint.isUnderlineText = true
         aPaint.letterSpacing = prefs.letterSpacing.toFloat() ?: 0.0f
         aPaint.typeface = textFont
@@ -648,6 +645,12 @@ object ChapterProvider {
         RenderResources.listMarkerPaint.color = prefs.textColor ?: Color.BLACK
         RenderResources.listMarkerPaint.textSize = contentPaint.textSize   // D-2 决策：1.0×（::marker 继承正文字号）
         RenderResources.listMarkerPaint.typeface = contentPaint.typeface
+        // AS-1 P2：三态模式同步（唯一同步点，绘制期 RenderResources.applyAuthorColor 读取；
+        // 本函数在所有画笔产出前执行，首次绘制前模式必已同步，无冷启动竞态）
+        RenderResources.bookColorMode = prefs.bookColorMode
+
+        // AD-1 §3.3：样式刷新兜底解析（记忆化，bg 未变零开销；防首帧早于 upBg 的窗口）
+        RenderResources.resolveAdaptiveColors()
 
         //更新屏幕参数
         upVisibleSize(context, prefs)
@@ -1193,12 +1196,10 @@ object ChapterProvider {
             if (paragraph.textCssInfo.fontStyle == CssFontStyle.CssFontStyleItalic) {   //设置斜体
                 textPaint.textSkewX = -0.25f
             }
-            if (paragraph.textCssInfo.display == "block") {
-                val fs = paragraph.textCssInfo.fontSize
-                when {
-                    fs.isEm() -> textPaint.textSize *= fs.value
-                    fs.isPx() -> textPaint.textSize = fs.value
-                }
+            // AS-1 §3.1：display:block 门控退役（与渲染侧同源 toFontScale，单一真相源）。
+            // 字号归一化：倍率作用于用户基准（em/rem 直乘、%/100、px 锚定 BASE_FONT_SIZE）
+            paragraph.textCssInfo.fontSize.toFontScale(BASE_FONT_SIZE)?.let { scale ->
+                textPaint.textSize *= scale
             }
 
             val userSetIndent = (readerPrefs?.paragraphIndent?.toFloat() ?: 0f)   //用户设置的首航缩进

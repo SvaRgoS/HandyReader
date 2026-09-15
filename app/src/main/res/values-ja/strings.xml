@@ -150,6 +150,10 @@
     <string name="color_settings">色の設定</string>
     <string name="background_color">背景色または画像</string>
     <string name="text_color">テキストの色</string>
+    <string name="book_color_mode">書籍のフォント色</string>
+    <string name="book_color_mode_smart">スマート</string>
+    <string name="book_color_mode_theme">テーマに従う</string>
+    <string name="book_color_mode_book">書籍に従う</string>
     <string name="select_color">%1$sの色を選択</string>
     <string name="no_books_in">%1$sに本がありません</string>
     <string name="to_get_started_please_select_a_directory_where_you_would_like_to_load_your_books">始めるには、本を読み込むディレクトリを選択してください。</string>

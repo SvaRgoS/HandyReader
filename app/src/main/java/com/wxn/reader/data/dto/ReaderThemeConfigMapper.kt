@@ -1,5 +1,6 @@
 package com.wxn.reader.data.dto
 
+import com.wxn.bookread.data.model.preference.BookColorMode
 import com.wxn.bookread.data.model.preference.ReaderPreferences
 import com.wxn.bookread.data.model.preference.ReaderThemePreset
 import com.wxn.bookread.data.source.local.ReaderPreferencesUtil
@@ -34,6 +35,8 @@ fun ReaderPreferences.toReaderThemeConfigEntity(themeId: String? = readerThemeId
         titleSize = titleSize,
         titleTopSpacing = titleTopSpacing,
         titleBottomSpacing = titleBottomSpacing,
+        // AS-1 P2：书籍字体颜色三态开关随主题存档（枚举 name 字符串）
+        bookColorMode = bookColorMode.name,
         // v11：对齐字段纳入归档管控（随 per-book 特性同步，见设计方案 §二.0）
         userTextAlign = userTextAlign,
         forceAlignOverride = if (forceAlignOverride) 1 else 0,
@@ -67,6 +70,9 @@ fun ReaderThemeConfigEntity.toReaderPreferences(current: ReaderPreferences): Rea
         titleSize = titleSize,
         titleTopSpacing = titleTopSpacing,
         titleBottomSpacing = titleBottomSpacing,
+        // AS-1 P2：三态开关从存档读取；损坏值回退 current（防御 DB 手改/老数据损坏，不静默翻转策略）
+        bookColorMode = runCatching { BookColorMode.valueOf(bookColorMode) }.getOrNull()
+            ?: current.bookColorMode,
         // v11：对齐字段从存档读取（不再透传 current，见设计方案 §二.0 第 3(b) 条）
         userTextAlign = userTextAlign,
         forceAlignOverride = forceAlignOverride != 0,
@@ -100,6 +106,8 @@ fun ReaderThemePreset.toReaderThemeConfigEntity(): ReaderThemeConfigEntity {
         titleSize = titleSize,
         titleTopSpacing = titleTopSpacing,
         titleBottomSpacing = titleBottomSpacing,
+        // AS-1 P2：预设携带三态开关（默认 SMART），首次切到无存档主题/重置时回预设默认
+        bookColorMode = bookColorMode.name,
         // v11：预设不含对齐，填 defaultPreferences 值保 schema 完整（见设计方案 §二.0 第 3(c) 条）
         userTextAlign = ReaderPreferencesUtil.defaultPreferences.userTextAlign,
         forceAlignOverride = if (ReaderPreferencesUtil.defaultPreferences.forceAlignOverride) 1 else 0,
@@ -123,8 +131,8 @@ private fun Double.differsFrom(other: Double): Boolean =
 /**
  * 逐字段判定存档是否偏离了预设（用于 * 号"已微调"标识）。
  *
- * 比较范围 = 15 个"视觉/排版"字段（与 [ReaderThemePreset] 实际定义的字段一一对应）：
- * - Int/String（背景/文字色、背景图、字体）精确比较；
+ * 比较范围 = 15 个"视觉/排版"字段 + [bookColorMode]（AS-1 P2 新增，共 16 个参与比对字段）：
+ * - Int/String（背景/文字色、背景图、字体、bookColorMode 枚举 name）精确比较；
  * - Double（字号/行距/边距等）用 [THEME_DIFF_EPSILON] 容差比较，规避 Float→Double 精度噪声。
  *
  * **v11 显式排除对齐两列**（设计方案 §二.0 第 4 条）：[ReaderThemeConfigEntity] v11 起新增的
@@ -147,4 +155,6 @@ fun ReaderThemeConfigEntity.differsFrom(preset: ReaderThemePreset): Boolean =
         pageVerticalMargins.differsFrom(preset.pageVerticalMargins) ||
         titleSize.differsFrom(preset.titleSize) ||
         titleTopSpacing.differsFrom(preset.titleTopSpacing) ||
-        titleBottomSpacing.differsFrom(preset.titleBottomSpacing)
+        titleBottomSpacing.differsFrom(preset.titleBottomSpacing) ||
+        // AS-1 P2：三态开关纳入比对（改开关 = 主题被微调，* 号亮）；与预设枚举 name 精确比较
+        bookColorMode != preset.bookColorMode.name

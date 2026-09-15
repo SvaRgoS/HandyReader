@@ -249,3 +249,38 @@ val ColorFFABB2_FF6083 = ColorA(0xFFABB2, 0xFF6083)
 
 @Stable
 val ColorMessageSend = ColorA(0x95EC69)
+
+//region AS-1 §3.2 颜色对比度自适应（WCAG 相对亮度/对比度，纯函数，JVM 可测）
+
+/** 智能对比可读阈值（WCAG 大字号/图形组件最低线；4.5 正文严格线会误杀 #777-on-white=4.48 这类有意弱化色） */
+const val CONTRAST_READABLE_THRESHOLD = 3.0f
+
+/** WCAG 相对亮度：sRGB 分量线性化后加权求和。alpha 不参与计算（由 [isReadableOn] 的 alpha 守卫单独处理）。 */
+fun Int.relativeLuminance(): Float {
+    fun channel(v: Int): Float {
+        val c = v / 255f
+        return if (c <= 0.03928f) c / 12.92f
+        else Math.pow(((c + 0.055f) / 1.055f).toDouble(), 2.4).toFloat()
+    }
+    val r = channel((this shr 16) and 0xFF)
+    val g = channel((this shr 8) and 0xFF)
+    val b = channel(this and 0xFF)
+    return 0.2126f * r + 0.7152f * g + 0.0722f * b
+}
+
+/** WCAG 对比度：[1.0, 21.0]。 */
+fun Int.contrastRatio(other: Int): Float {
+    val l1 = relativeLuminance()
+    val l2 = other.relativeLuminance()
+    return (maxOf(l1, l2) + 0.05f) / (minOf(l1, l2) + 0.05f)
+}
+
+/**
+ * 前景 fg 在背景 bg 上是否可读（AS-1 §3.2 单判据）：alpha>=0x1A(≈10%) 且对比度>=threshold。
+ * transparent/低 alpha 在纯亮度对比下虚高（白底算出 21:1 但实际不可见），alpha 守卫直接拦下。
+ */
+fun Int.isReadableOn(bg: Int, threshold: Float = CONTRAST_READABLE_THRESHOLD): Boolean {
+    if ((this ushr 24) < 0x1A) return false
+    return contrastRatio(bg) >= threshold
+}
+//endregion

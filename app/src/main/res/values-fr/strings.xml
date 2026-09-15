@@ -151,6 +151,10 @@
     <string name="color_settings">Paramètres de couleur</string>
     <string name="background_color">Couleur de fond ou image</string>
     <string name="text_color">Couleur du texte</string>
+    <string name="book_color_mode">Couleur de police du livre</string>
+    <string name="book_color_mode_smart">Intelligent</string>
+    <string name="book_color_mode_theme">Suivre le thème</string>
+    <string name="book_color_mode_book">Suivre le livre</string>
     <string name="select_color">Sélectionner la couleur %1$s</string>
     <string name="no_books_in">Aucun livre dans %1$s</string>
     <string name="to_get_started_please_select_a_directory_where_you_would_like_to_load_your_books">Pour commencer, veuillez sélectionner un répertoire où vous souhaitez charger vos livres.</string>

@@ -167,6 +167,7 @@ import com.wxn.reader.data.source.local.dao.PerBookMetaDao
 import com.wxn.reader.data.source.local.dao.PerBookThemeOverrideDao
 import com.wxn.reader.data.source.local.dao.ReaderThemeConfigDao
 import com.wxn.reader.data.repository.PerBookConfigRepository
+import com.wxn.bookread.data.model.preference.BookColorMode
 import com.wxn.bookread.data.model.preference.ReaderThemeMode
 import com.wxn.reader.ui.theme.ReaderThemePresets
 
@@ -1289,6 +1290,8 @@ class MainReadViewModel @Inject constructor(
             //
             // isLayoutChange 字段清单依据 ChapterProvider.applyStyleInternal / setTypeText / upVisibleSize 实际读取，
             // 以及 PageView.upPageAnim / upPageControl（scroll/animationSpeed/clickAreaMode/leftHandedMode）。
+            // bookColorMode（AS-1 P2）经 applyStyleInternal 同步至 RenderResources 单例（模式唯一同步入口），
+            // 变化必须走 updatePageViews 触发同步与全量重绘（与 textColor 同档，r5 审查已实证双模式刷新链闭环）。
             // 注：titleSize/publisherStyles/textNormalization/verticalText/readingProgression 当前为渲染层未接入的
             // 预留字段（渲染层零读取），故不纳入 isLayoutChange；若将来接入渲染，需同步加入此处。
             val isLayoutChange =
@@ -1307,6 +1310,7 @@ class MainReadViewModel @Inject constructor(
                 oldPref.userTextAlign != newPref.userTextAlign ||
                 oldPref.columns != newPref.columns ||
                 oldPref.textColor != newPref.textColor ||
+                oldPref.bookColorMode != newPref.bookColorMode ||
                 oldPref.scroll != newPref.scroll ||
                 oldPref.animationSpeed != newPref.animationSpeed ||
                 oldPref.clickAreaMode != newPref.clickAreaMode ||
@@ -2973,6 +2977,23 @@ class MainReadViewModel @Inject constructor(
             perBookConfigRepo.saveSnapshot(bookId, themeId, base.copy(textColor = color))
         } else {
             readerPrefsUtil.updateTextColor(color)
+        }
+    }
+
+    /**
+     * 「书籍字体颜色」三态开关（AS-1 P2，完全主题化 §3.7）。
+     * per-book 模式：写该书 × 当前主题的快照（不影响全局/其他书）；
+     * 全局模式：写 DataStore。isLayoutChange 感知后自动触发 updatePageViews 全量刷新
+     * （upStyle → applyStyleInternal 同步模式至 RenderResources 单例 → loadChapter/loadContent 重绘）。
+     */
+    fun updateBookColorMode(mode: BookColorMode) = launchPerBookWrite {
+        val bookId = currentBookId.value ?: return@launchPerBookWrite
+        val themeId = perBookThemeId
+        if (isPerBookMode && themeId != null) {
+            val base = currentEffectivePrefs(bookId, themeId)
+            perBookConfigRepo.saveSnapshot(bookId, themeId, base.copy(bookColorMode = mode))
+        } else {
+            readerPrefsUtil.updateBookColorMode(mode)
         }
     }
 

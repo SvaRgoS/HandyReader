@@ -2,7 +2,6 @@ package com.wxn.bookread.ui
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.RectF
 import android.text.TextPaint
 import android.util.AttributeSet
@@ -424,12 +423,11 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
         val lineTop = textLine.lineTop + relativeOffset
         val lineBottom = textLine.lineBottom + relativeOffset
 
-        var noteColor = "#FFFF00"
         val (left, right) = textLine.textChars.visualSpan { i -> (textLine.textIndexAt(i) + lineStartOffset) in start..<end } ?: return
         val top = lineTop - (marginTop / 2)
         val bottom = lineBottom + (marginBottom / 2)
 
-        RenderResources.readAloudBgPaint.color = noteColor.toColor() ?: Color.YELLOW
+        RenderResources.readAloudBgPaint.color = RenderResources.resolved.readAloudBg
         RenderResources.readAloudBgPaint.alpha = (0.4f * 255).toInt()
         RenderResources.readAloudBgRect.set(left, top, right, bottom)
         canvas.drawRect(RenderResources.readAloudBgRect, RenderResources.readAloudBgPaint)
@@ -498,7 +496,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
             val (left, right) = textLine.textChars.visualSpan() ?: Pair(0f, ChapterProvider.viewWidth.toFloat())
             val top = lineTop - (marginTop / 2)
             val bottom = lineBottom + (marginBottom / 2)
-            RenderResources.noteBgPaint.color = noteColor.toColor() ?: Color.YELLOW
+            RenderResources.noteBgPaint.color = noteColor.toColor() ?: RenderResources.resolved.noteFallback
             RenderResources.noteBgPaint.alpha = RenderResources.NOTE_BG_ALPHA
             RenderResources.noteBgRect.set(left, top, right, bottom)
             canvas.drawRect(RenderResources.noteBgRect, RenderResources.noteBgPaint)
@@ -511,7 +509,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                     val iconDiameter = 2 * RenderResources.dp12
                     val iconLeft = if (lineRtl) right - iconDiameter else left
                     val iconTop = lineTop - RenderResources.dp12
-                    RenderResources.noteCirclePaint.color = noteColor.toColor() ?: Color.YELLOW
+                    RenderResources.noteCirclePaint.color = noteColor.toColor() ?: RenderResources.resolved.noteFallback
                     canvas.drawCircle(iconLeft + RenderResources.dp12, iconTop + RenderResources.dp12, RenderResources.dp12, RenderResources.noteCirclePaint)
                     RenderResources.noteIconRect.set(iconLeft + RenderResources.dp6, iconTop + RenderResources.dp6, iconLeft + 3 * RenderResources.dp6, iconTop + 3 * RenderResources.dp6)
                     canvas.drawBitmap(noteIcon, null, RenderResources.noteIconRect, null)
@@ -614,8 +612,8 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
         //绘制html列表前面的 圆点/方块（垂直=字符带中心随基线，水平=层级槽位锚点；见 ListDotRenderer）
         ListDotRenderer.draw(canvas, textLine, lineBase)
 
-        var hightlightColor: String = "#FFFFFF00"
-        var underlineColor: String = "#FF575757"
+        var hightlightColor: Int? = null    // AD-1：Int? 直存（r1-F7），null→色板 fallback
+        var underlineColor: Int? = null
 
         var textOnlyIdx = 0
         textLine.textChars.forEachIndexed { index, ch ->
@@ -635,15 +633,15 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                         when (tag.name) {
                             "highlight" -> {
                                 tag.paramsPairs().firstOrNull { it.first == "color" }?.second?.let {
-                                    hightlightColor = it
+                                    hightlightColor = it.toColor()
                                 }
-                                RenderResources.highlightPaint.color = hightlightColor.toColor() ?: Color.YELLOW
+                                RenderResources.highlightPaint.color = hightlightColor ?: RenderResources.resolved.highlightFallback
                                 isHighlight = true
                             }
 
                             "underline" -> {
                                 tag.paramsPairs().firstOrNull { it.first == "color" }?.second?.let {
-                                    underlineColor = it
+                                    underlineColor = it.toColor()
                                 }
                                 isUnderline = true
                             }
@@ -667,15 +665,15 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                                 tags.add(tag)
                             } else if (tag.name == "underline") {
                                 tag.paramsPairs().firstOrNull { it.first == "color" }?.second?.let {
-                                    underlineColor = it
+                                    underlineColor = it.toColor()
                                     Logger.d("ContentTextView::underlineColor=$underlineColor")
                                 }
                                 isUnderline = true
                             } else if (tag.name == "highlight") {
                                 tag.paramsPairs().firstOrNull { it.first == "color" }?.second?.let {
-                                    hightlightColor = it
+                                    hightlightColor = it.toColor()
                                 }
-                                RenderResources.highlightPaint.color = hightlightColor.toColor() ?: Color.YELLOW
+                                RenderResources.highlightPaint.color = hightlightColor ?: RenderResources.resolved.highlightFallback
                                 isHighlight = true
                             } else if (tag.name == "strong" || tag.name == "b" || tag.name == "big") {
                                 isBold = true
@@ -739,7 +737,7 @@ class ContentTextView(context: Context, attrs: AttributeSet?) : View(context, at
                 )
             }
             if (isUnderline) {                //设置画笔绘制下划线
-                RenderResources.linePaint.color = underlineColor.toColor() ?: Color.GRAY
+                RenderResources.linePaint.color = underlineColor ?: RenderResources.resolved.underlineFallback
                 RenderResources.linePaint.strokeWidth = 3f
 
                 canvas.drawLine(

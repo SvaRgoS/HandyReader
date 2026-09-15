@@ -2,7 +2,6 @@ package com.wxn.reader.presentation.mainReader
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.text.TextPaint
@@ -247,6 +246,12 @@ fun ContinuousScrollReaderView(viewModel: MainReadViewModel) {
     //背景颜色
     val bgColor = remember(readerPreferences.backgroundColor) {
         readerPreferences.backgroundColor.toComposeColor()
+    }
+    // AS-1 §3.5 同步点 B：滚动模式背景色同步（滚动模式不经 PageView.upBg；SideEffect=每次成功
+    // 重组后、本帧绘制前同步，保证绘制帧读到当前值，无首帧竞态。背景图场景用存储色近似，方案 RK-9。
+    // AD-1：改调统一入口，背景变化时同步重烧自适应画笔）
+    androidx.compose.runtime.SideEffect {
+        RenderResources.onPageBgChanged(readerPreferences.backgroundColor)
     }
 
     val lazyListState = rememberLazyListState()
@@ -2027,7 +2032,7 @@ private fun drawTtsReadAloudBg(
         val top = textLine.lineTop - RenderResources.dp4
         val bottom = textLine.lineBottom + RenderResources.dp4
 
-        RenderResources.readAloudBgPaint.color = Color.YELLOW
+        RenderResources.readAloudBgPaint.color = RenderResources.resolved.readAloudBg
         RenderResources.readAloudBgPaint.alpha = (0.4f * 255).toInt()
         RenderResources.readAloudBgRect.set(left, top, right, bottom)
         canvas.drawRect(RenderResources.readAloudBgRect, RenderResources.readAloudBgPaint)
@@ -2117,7 +2122,7 @@ private fun drawAnnotationBackgrounds(
         tags.firstOrNull { it.name == "note" }?.let { noteTag ->
             val colorStr = noteTag.paramsPairs().firstOrNull { it.first == "color" }
                 ?.second ?: RenderResources.NOTE_DEFAULT_COLOR_HEX
-            RenderResources.noteBgPaint.color = colorStr.toColor() ?: Color.YELLOW
+            RenderResources.noteBgPaint.color = colorStr.toColor() ?: RenderResources.resolved.noteFallback
             RenderResources.noteBgPaint.alpha = RenderResources.NOTE_BG_ALPHA
 
             val span = textLine.textChars.visualSpan()
@@ -2141,7 +2146,7 @@ private fun drawAnnotationBackgrounds(
                         else -> span.first                        // LTR：贴左缘
                     }
                     val iconTop = textLine.lineTop - RenderResources.dp12
-                    RenderResources.noteCirclePaint.color = colorStr.toColor() ?: Color.YELLOW
+                    RenderResources.noteCirclePaint.color = colorStr.toColor() ?: RenderResources.resolved.noteFallback
                     canvas.drawCircle(
                         iconLeft + RenderResources.dp12,
                         iconTop + RenderResources.dp12,
@@ -2171,9 +2176,8 @@ private fun drawAnnotationBackgrounds(
                         "highlight" -> {
                             val colorStr = tag.paramsPairs()
                                 .firstOrNull { it.first == "color" }?.second
-                                ?: "#FFFFFF00"
                             RenderResources.highlightPaint.color =
-                                colorStr.toColor() ?: Color.YELLOW
+                                colorStr?.toColor() ?: RenderResources.resolved.highlightFallback
                             canvas.drawRoundRect(
                                 RectF(
                                     ch.start - 1f,
@@ -2187,10 +2191,8 @@ private fun drawAnnotationBackgrounds(
                         "underline" -> {
                             val colorStr = tag.paramsPairs()
                                 .firstOrNull { it.first == "color" }?.second
-                                ?: "#FF575757"
-                            colorStr.toColor()?.let { color ->
-                                RenderResources.underlinePaint.color = color
-                            }
+                            RenderResources.underlinePaint.color =
+                                colorStr?.toColor() ?: RenderResources.resolved.underlineFallback
                             RenderResources.underlinePaint.strokeWidth = 3f
                             canvas.drawLine(
                                 ch.start, textLine.lineBottom,

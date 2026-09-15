@@ -156,6 +156,10 @@
     <string name="color_settings">إعدادات اللون</string>
     <string name="background_color">لون الخلفية أو صورة</string>
     <string name="text_color">لون النص</string>
+    <string name="book_color_mode">لون خط الكتاب</string>
+    <string name="book_color_mode_smart">ذكي</string>
+    <string name="book_color_mode_theme">اتباع السمة</string>
+    <string name="book_color_mode_book">اتباع الكتاب</string>
     <string name="select_color">حدد لون %1$s</string>
     <string name="no_books_in">لا توجد كتب في %1$s</string>
     <string name="welcome_to_uread">مرحبًا بك في HandyReader!</string>

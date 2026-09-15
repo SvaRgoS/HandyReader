@@ -29,6 +29,7 @@ fun ReaderThemePreset.applyTo(current: ReaderPreferences): ReaderPreferences {
         titleSize = titleSize,
         titleTopSpacing = titleTopSpacing,
         titleBottomSpacing = titleBottomSpacing,
+        bookColorMode = bookColorMode,
         // 不覆盖（保留用户值）：colorHistory, forceAlignOverride, userTextAlign, brightness, brightnessSet,
         //   keepScreenOn, scroll, animationSpeed, readingProgression, verticalText 等非视觉/非排版字段
     )

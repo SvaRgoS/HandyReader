@@ -947,6 +947,8 @@ class PageView : FrameLayout, IDataSource, PageCallback {
                     nextPage.setBg(bgDrawable)
                 } else {
                     val bgColor = preference.backgroundColor
+                    // AS-1 同步点 A（纯色分支）+ AD-1 统一入口：判定基准随背景更新并重烧自适应画笔
+                    RenderResources.onPageBgChanged(bgColor)
                     val cleanBg = preference.backgroundImage.isEmpty()
                     curPage.setBg(bgColor, cleanBg)
                     prevPage.setBg(bgColor, cleanBg)
@@ -960,6 +962,8 @@ class PageView : FrameLayout, IDataSource, PageCallback {
                     } else null
                 } else null
 
+                // AS-1 同步点 A（图分支）+ AD-1 统一入口：背景图用 foldColor 主色近似作判定基准
+                RenderResources.onPageBgChanged(foldColor ?: preference.backgroundColor)
                 pageDelegate?.onBgChanged(foldColor ?: preference.backgroundColor)
                 clearBitmapCache()
             }

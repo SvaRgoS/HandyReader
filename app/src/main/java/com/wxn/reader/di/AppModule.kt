@@ -220,6 +220,8 @@ object AppModule {
             .addMigrations(AppDatabase.createMigration7To10(localDeviceId))
             // ★ v11 per-book 阅读配置(reader_theme_configs 加对齐两列 + 两张 per_book 新表)
             .addMigrations(AppDatabase.Migration_10_11)
+            // ★ v12 AS-1 P2 完全主题化(双主题表加 bookColorMode 列)
+            .addMigrations(AppDatabase.Migration_11_12)
             .build()
 
         // ★ v12 post-migration 清理：删除孤儿 .idx 影子缓存(详见 plan-txt-unify-byte-offset.md §6.2)。

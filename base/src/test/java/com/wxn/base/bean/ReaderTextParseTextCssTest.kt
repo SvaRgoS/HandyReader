@@ -350,4 +350,188 @@ class ReaderTextParseTextCssTest {
         assertEquals(1.5f, scaleStyle.props.fontScale!!, 0.0001f)
         assertNull("fontScale-only tag 的 color 必须为 null", scaleStyle.props.color)
     }
+
+    // ════════════════════════════════════════════════════════════════════
+    // AS-1 §3.4/Phase 3：内联 style 展开与「内联 > 作者规则」级联
+    // ════════════════════════════════════════════════════════════════════
+
+    /**
+     * S1:块级内联胜出 — params 规则声明与 style 内联声明同现，
+     *    style 子对后置追加 → 分支循环后写胜出（内联 > 作者规则）。
+     */
+    @Test
+    fun S1_blockLevel_inlineStyleOverridesRuleDeclarations() {
+        val text = ReaderText.Text(
+            line = "整段文本",
+            annotations = listOf(
+                TextTag(
+                    uuid = "s1", name = "p", start = 0, end = 4,
+                    params = "class=big&font-size=1em&color=#00ff00&style=color:#ff0000;font-size:2em"
+                )
+            )
+        )
+
+        text.parseTextCss()
+
+        assertEquals("内联 color 应覆盖规则 color", "#ff0000", text.textCssInfo.fontColor)
+        assertEquals("内联 font-size 应覆盖规则 font-size", 2.0f, text.textCssInfo.fontSize.value, 0.0001f)
+        assertTrue("内联 font-size=2em 应解析为 em 类型", text.textCssInfo.fontSize.isEm())
+    }
+
+    /** S2:span 级 style=color → 进入 inlineStyles（内联作者色经 span 通道收集） */
+    @Test
+    fun S2_spanLevel_inlineColor_collected() {
+        val text = ReaderText.Text(
+            line = "红字正文",
+            annotations = listOf(
+                TextTag(uuid = "s2", name = "span", start = 0, end = 2, params = "style=color:#ff0000")
+            )
+        )
+
+        text.parseTextCss()
+
+        val first = text.inlineStyles?.firstOrNull()
+        assertEquals("#ff0000", first?.props?.color)
+        assertNull("仅 color 时 fontScale 必须为 null", first?.props?.fontScale)
+    }
+
+    /** S3a:span style=font-size:2em → fontScale=2.0（em 在 span 接受域内） */
+    @Test
+    fun S3a_spanLevel_inlineEmFontScale_collected() {
+        val text = ReaderText.Text(
+            line = "大字正文",
+            annotations = listOf(
+                TextTag(uuid = "s3a", name = "span", start = 0, end = 2, params = "style=font-size:2em")
+            )
+        )
+
+        text.parseTextCss()
+
+        assertEquals(2.0f, text.inlineStyles?.firstOrNull()?.props?.fontScale ?: 0f, 0.0001f)
+    }
+
+    /** S3b:span style=font-size:24px → 跳过（span 单位接受域不变，T4 既有语义保持） */
+    @Test
+    fun S3b_spanLevel_inlinePxFontScale_skipped() {
+        val text = ReaderText.Text(
+            line = "大字正文",
+            annotations = listOf(
+                TextTag(uuid = "s3b", name = "span", start = 0, end = 2, params = "style=font-size:24px")
+            )
+        )
+
+        text.parseTextCss()
+
+        assertTrue("span 级 px 字号应保持跳过", text.inlineStyles?.isEmpty() == true)
+    }
+
+    /** S4:块级 style=font-size:150% → Percent 类型进入 textCssInfo（块级接受全单位） */
+    @Test
+    fun S4_blockLevel_percentFontScale_parsed() {
+        val text = ReaderText.Text(
+            line = "整段文本",
+            annotations = listOf(
+                TextTag(uuid = "s4", name = "p", start = 0, end = 4, params = "style=font-size:150%")
+            )
+        )
+
+        text.parseTextCss()
+
+        assertEquals(150f, text.textCssInfo.fontSize.value, 0.0001f)
+        assertTrue(text.textCssInfo.fontSize.isPercent())
+    }
+
+    /** S5a:style=（空值）被 paramsPairs 丢弃 → 无 style 键，零展开 */
+    @Test
+    fun S5a_emptyStyleValue_noExpansion() {
+        val text = ReaderText.Text(
+            line = "整段文本",
+            annotations = listOf(
+                TextTag(uuid = "s5a", name = "p", start = 0, end = 4, params = "style=&color=#123456")
+            )
+        )
+
+        text.parseTextCss()
+
+        assertEquals("无 style 展开时规则 color 生效", "#123456", text.textCssInfo.fontColor)
+    }
+
+    /** S5b:style=foo（无冒号）→ 畸形声明丢弃，不崩溃 */
+    @Test
+    fun S5b_styleWithoutColon_dropped() {
+        val text = ReaderText.Text(
+            line = "整段文本",
+            annotations = listOf(
+                TextTag(uuid = "s5b", name = "p", start = 0, end = 4, params = "style=foo")
+            )
+        )
+
+        text.parseTextCss()  // 不崩溃
+
+        assertEquals("", text.textCssInfo.fontColor)
+    }
+
+    /** S5c:style=a:b:c → 按首个冒号拆分得 ("a","b:c")，未知键被分支忽略，不崩溃 */
+    @Test
+    fun S5c_extraColon_keptInValue_ignoredKey() {
+        val text = ReaderText.Text(
+            line = "子串正文",
+            annotations = listOf(
+                TextTag(uuid = "s5c", name = "span", start = 0, end = 2, params = "style=color:red:url(x)")
+            )
+        )
+
+        text.parseTextCss()  // 不崩溃
+
+        // color 值为 "red:url(x)" → 渲染期 toColor 失败回退用户色，解析层只保证不丢整段
+        assertEquals("red:url(x)", text.inlineStyles?.firstOrNull()?.props?.color)
+    }
+
+    /** S5d:style= : red ;（键空 + 尾空声明）→ 全部丢弃 */
+    @Test
+    fun S5d_blankKeyAndTrailingSemicolon_dropped() {
+        val text = ReaderText.Text(
+            line = "整段文本",
+            annotations = listOf(
+                TextTag(uuid = "s5d", name = "p", start = 0, end = 4, params = "style= : red ;")
+            )
+        )
+
+        text.parseTextCss()
+
+        assertEquals("", text.textCssInfo.fontColor)
+    }
+
+    /** S5e:style=color:;font-size:2em → 空 value 的 color 丢弃、font-size 保留（逐声明容错） */
+    @Test
+    fun S5e_partialDeclarations_validOnesKept() {
+        val text = ReaderText.Text(
+            line = "整段文本",
+            annotations = listOf(
+                TextTag(uuid = "s5e", name = "p", start = 0, end = 4, params = "style=color:;font-size:2em")
+            )
+        )
+
+        text.parseTextCss()
+
+        assertEquals("", text.textCssInfo.fontColor)
+        assertEquals(2.0f, text.textCssInfo.fontSize.value, 0.0001f)
+    }
+
+    /** S6:无 style 键的既有路径零变化（回归锚定）——params 规则声明照常生效 */
+    @Test
+    fun S6_noStyleKey_existingBehaviorUnchanged() {
+        val text = ReaderText.Text(
+            line = "整段文本",
+            annotations = listOf(
+                TextTag(uuid = "s6", name = "p", start = 0, end = 4, params = "color=#00ff00&font-size=1.2em")
+            )
+        )
+
+        text.parseTextCss()
+
+        assertEquals("#00ff00", text.textCssInfo.fontColor)
+        assertEquals(1.2f, text.textCssInfo.fontSize.value, 0.0001f)
+        assertTrue(text.inlineStyles?.isEmpty() == true)
+    }
 }

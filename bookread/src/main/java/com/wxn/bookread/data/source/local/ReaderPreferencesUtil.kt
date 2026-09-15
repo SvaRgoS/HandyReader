@@ -14,6 +14,7 @@ import com.wxn.base.ext.toCompatibleArgb
 import com.wxn.base.util.Coroutines
 import com.wxn.base.util.Logger
 import com.wxn.bookread.data.model.config.ConfigReadingProgression
+import com.wxn.bookread.data.model.preference.BookColorMode
 import com.wxn.bookread.data.model.preference.ReaderPreferences
 import com.wxn.bookread.data.model.preference.ReaderThemeMode
 import kotlinx.coroutines.flow.Flow
@@ -59,6 +60,7 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
         val COLOR_HISTORY = stringPreferencesKey("color_history")                           //颜色历史
         val READER_THEME_ID = stringPreferencesKey("reader_theme_id")                       //阅读主题id
         val READER_THEME_MODE = stringPreferencesKey("reader_theme_mode")                     //阅读主题模式(LIGHT/DARK/AUTO)
+        val BOOK_COLOR_MODE = stringPreferencesKey("book_color_mode")                         //书籍字体颜色三态开关(SMART/THEME/BOOK)，工作态（主题存档/快照见 Room 双主题表）
 
         val READING_PROGRESSION = stringPreferencesKey("reading_progression")               //阅读方向，从左向右 / 从右向左
         val VERTICAL_TEXT = booleanPreferencesKey("vertical_text")                          //垂直文本
@@ -113,6 +115,7 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
             readingProgression = ConfigReadingProgression.AUTO,
             verticalText = false,
             publisherStyles = false,
+            bookColorMode = BookColorMode.SMART,
             textNormalization = false,
             volumeKeyPageTurning = false,
             clickAreaMode = 0,
@@ -155,6 +158,7 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
                 pref[READING_PROGRESSION] = defaultPreferences.readingProgression.name
                 pref[VERTICAL_TEXT] = defaultPreferences.verticalText
                 pref[PUBLISHER_STYLES] = defaultPreferences.publisherStyles
+                pref[BOOK_COLOR_MODE] = defaultPreferences.bookColorMode.name
                 pref[TEXT_NORMALIZATION] = defaultPreferences.textNormalization
                 pref[VOLUME_KEY_PAGE_TURNING] = defaultPreferences.volumeKeyPageTurning
                 pref[CLICK_AREA_MODE] = defaultPreferences.clickAreaMode
@@ -227,6 +231,9 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
             ),
             verticalText = preferences[VERTICAL_TEXT] ?: defaultPreferences.verticalText,
             publisherStyles = preferences[PUBLISHER_STYLES] ?: defaultPreferences.publisherStyles,
+            bookColorMode = preferences[BOOK_COLOR_MODE]
+                ?.let { runCatching { BookColorMode.valueOf(it) }.getOrNull() }
+                ?: defaultPreferences.bookColorMode,
             textNormalization = preferences[TEXT_NORMALIZATION] ?: defaultPreferences.textNormalization,
             volumeKeyPageTurning = preferences[VOLUME_KEY_PAGE_TURNING] ?: defaultPreferences.volumeKeyPageTurning,
             clickAreaMode = preferences[CLICK_AREA_MODE] ?: defaultPreferences.clickAreaMode,
@@ -476,6 +483,7 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
             preferences[READING_PROGRESSION] = newPreferences.readingProgression.name
             preferences[VERTICAL_TEXT] = newPreferences.verticalText
             preferences[PUBLISHER_STYLES] = newPreferences.publisherStyles
+            preferences[BOOK_COLOR_MODE] = newPreferences.bookColorMode.name
             preferences[TEXT_NORMALIZATION] = newPreferences.textNormalization
             preferences[VOLUME_KEY_PAGE_TURNING] = newPreferences.volumeKeyPageTurning
             preferences[CLICK_AREA_MODE] = newPreferences.clickAreaMode
@@ -492,6 +500,19 @@ class ReaderPreferencesUtil @Inject constructor(context: Context) {
         Logger.d("ReaderPreferencesUtil::updateReaderThemeMode[$mode]")
         dataStore.edit { preferences ->
             preferences[READER_THEME_MODE] = mode.name
+        }
+    }
+
+    /**
+     * 持久化「书籍字体颜色」三态开关工作态（AS-1 P2，完全主题化 §3.7）。
+     * 仅全局模式分支调用（per-book 模式必须走 ViewModel 的 saveSnapshot 路径，
+     * 误用会绕过书级快照隔离污染全局）。不加入 resetReaderPreferences 行为组重置——
+     * 它是主题字段，重置入口收敛为主题面板「重置」（resetCurrentTheme 回预设默认）。
+     */
+    suspend fun updateBookColorMode(mode: BookColorMode) {
+        Logger.d("ReaderPreferencesUtil::updateBookColorMode[$mode]")
+        dataStore.edit { preferences ->
+            preferences[BOOK_COLOR_MODE] = mode.name
         }
     }
 

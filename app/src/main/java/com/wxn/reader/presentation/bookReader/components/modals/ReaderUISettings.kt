@@ -91,6 +91,7 @@ import com.wxn.base.ext.toComposeColor
 import com.wxn.base.util.ToastUtil
 import com.wxn.bookread.data.model.InfoBarSlots
 import com.wxn.bookread.data.model.InfoBarSpec
+import com.wxn.bookread.data.model.preference.BookColorMode
 import com.wxn.bookread.data.model.preference.ReadTipPreferences
 import com.wxn.bookread.data.model.preference.ReaderPreferences
 import com.wxn.reader.R
@@ -389,6 +390,47 @@ fun ReaderUISettings(
                                     }
                                 },
                             )
+
+                            // 「书籍字体颜色」三态开关（AS-1 P2：智能对比 / 跟随主题 / 跟随书籍）。
+                            // 紧随文字颜色色板（色板=用户色本体，开关=作者色策略，从属关系由紧邻排版表达）
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.book_color_mode),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            SingleChoiceSegmentedButtonRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                            ) {
+                                val colorModes = listOf(
+                                    BookColorMode.SMART to R.string.book_color_mode_smart,
+                                    BookColorMode.THEME to R.string.book_color_mode_theme,
+                                    BookColorMode.BOOK to R.string.book_color_mode_book,
+                                )
+                                colorModes.forEachIndexed { index, (mode, labelRes) ->
+                                    SegmentedButton(
+                                        selected = readerPreferences.bookColorMode == mode,
+                                        onClick = { viewModel.updateBookColorMode(mode) },
+                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = colorModes.size)
+                                    ) {
+                                        Text(
+                                            text = stringResource(labelRes),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider()
                             Spacer(modifier = Modifier.height(8.dp))

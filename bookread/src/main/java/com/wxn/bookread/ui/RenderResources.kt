@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.os.Build
 import android.text.TextPaint
 import androidx.core.graphics.toColorInt
 import com.wxn.base.bean.CssFontStyle
@@ -13,9 +14,13 @@ import com.wxn.base.bean.CssFontWeight
 import com.wxn.base.bean.TextCssInfo
 import com.wxn.base.ext.DpExt
 import com.wxn.base.ext.getCompatColor
+import com.wxn.base.ext.isReadableOn
 import com.wxn.base.ext.toColor
+import com.wxn.base.unit.toFontScale
 import com.wxn.bookread.R
 import com.wxn.bookread.data.model.TextChar
+import com.wxn.bookread.data.model.preference.BASE_FONT_SIZE
+import com.wxn.bookread.data.model.preference.BookColorMode
 import com.wxn.bookread.ext.BitmapExt
 import com.wxn.bookread.provider.ChapterProvider
 import com.wxn.bookread.provider.ShapedRunBuffer
@@ -64,7 +69,7 @@ object RenderResources {
 
     val bookmarkPaint = Paint().apply {
         style = Paint.Style.FILL
-        color = "#FF575757".toColorInt()
+        color = AccentPalette.LIGHT.bookmark
     }
 
     val noteBgPaint = Paint().apply { style = Paint.Style.FILL }
@@ -74,16 +79,86 @@ object RenderResources {
     val readAloudBgPaint = Paint().apply { style = Paint.Style.FILL }
 
     val searchHighlightPaint = Paint().apply {
-        color = 0x4000BFFF
+        color = AccentPalette.LIGHT.searchHighlight
         style = Paint.Style.FILL
     }
 
     val imagePlaceholderPaint = Paint().apply {
         style = Paint.Style.FILL
-        color = Color.LTGRAY
+        color = AccentPalette.LIGHT.imagePlaceholder
     }
 
     val drawingPaint = TextPaint().apply { isAntiAlias = true }
+
+    // ==================== AS-1 作者样式三态（智能对比判定基准） ====================
+
+    /** 当前阅读背景色（ARGB）。分页模式由 PageView.upBg 同步（图背景用 foldColor 主色近似）；
+     *  连续滚动模式由 ContinuousScrollReaderView SideEffect 同步。智能对比模式的判定基准。 */
+    var pageBgColor: Int = Color.WHITE
+
+    /** 「书籍字体颜色」三态模式（[BookColorMode]）。由 ChapterProvider.applyStyleInternal 同步
+     *  （prefs → 单例，isLayoutChange → updatePageViews → upStyle 链保证绘制前已同步），applyCharPaint 绘制期读取。 */
+    var bookColorMode: BookColorMode = BookColorMode.SMART
+
+    /**
+     * 作者颜色统一应用点（段级 fontColor 与 span 级 inlineColor 同规则，AS-1 §3.6.1/§3.6.3）：
+     * - [BookColorMode.THEME]：不覆盖——保持进入时画笔色（用户主题文字色），即"用户优先"旧语义；
+     * - [BookColorMode.BOOK]  ：无条件覆盖（跳过对比判定与低 alpha 守卫，逃生门）；
+     * - [BookColorMode.SMART] ：对比度判定（含低 alpha 守卫），可读才覆盖；不可读则继承当前画笔色
+     *                           （用户色，或已保留的段级作者色——与 CSS 继承一致）。
+     * colorStr 空/null → 直接返回（无作者声明）。
+     */
+    fun applyAuthorColor(colorStr: String?) {
+        if (colorStr.isNullOrEmpty()) return
+        when (bookColorMode) {
+            BookColorMode.THEME -> Unit
+            BookColorMode.BOOK -> colorStr.toColor()?.let { drawingPaint.color = it }
+            BookColorMode.SMART -> colorStr.toColor()
+                ?.takeIf { it.isReadableOn(pageBgColor) }
+                ?.let { drawingPaint.color = it }
+        }
+    }
+
+    // ==================== AD-1 背景自适应默认色（AccentPalette 消费端） ====================
+
+    /** 最近一次背景解析产物。绘制处 fallback（ContentTextView / ContinuousScrollReaderView）
+     *  只读本值；画笔烧入仅发生在 [resolveAdaptiveColors]。 */
+    var resolved: AccentPalette.Resolved = AccentPalette.LIGHT
+        private set
+
+    /** 记忆化键。null 哨兵保证首次调用必解析（若初值取 Color.WHITE 会与默认 pageBgColor
+     *  相等而短路，aPaint 停留在 TextPaint 默认黑——r4-R1） */
+    private var resolvedBg: Int? = null
+
+    /**
+     * 背景自适应统一解析入口（AD-1 §3.3）：按 [pageBgColor] 重算并烧入全部自适应画笔。
+     * [onPageBgChanged]（背景变化）与 ChapterProvider.applyStyleInternal（样式刷新兜底）调用；
+     * bg 未变则短路（零开销）。调用方均在主线程（upBg 主 Scope launch / SideEffect / upStyle）。
+     */
+    fun resolveAdaptiveColors() {
+        val bg = pageBgColor
+        if (resolvedBg == bg) return
+        resolvedBg = bg
+        resolved = AccentPalette.resolve(bg)
+        searchHighlightPaint.color = resolved.searchHighlight
+        handlePaint.color = resolved.selectionHandle
+        handleStrokePaint.color = resolved.selectionHandle
+        imagePlaceholderPaint.color = resolved.imagePlaceholder
+        bookmarkPaint.color = resolved.bookmark
+        underlinePaint.color = resolved.underlineFallback
+        // aPaint 颜色唯一写入点（r1-F3）：文字与下划线同色
+        ChapterProvider.aPaint.color = resolved.link
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
+            ChapterProvider.aPaint.underlineColor = resolved.link
+        }
+    }
+
+    /** 背景变化统一入口：原 pageBgColor 直写点（PageView.upBg、
+     *  ContinuousScrollReaderView SideEffect）改调此处 */
+    fun onPageBgChanged(bg: Int) {
+        pageBgColor = bg
+        resolveAdaptiveColors()
+    }
 
     val listDotPaint = Paint().apply {
         color = "#FF333333".toColorInt()
@@ -101,20 +176,20 @@ object RenderResources {
     }
 
     val underlinePaint = Paint().apply {
-        color = "#FF575757".toColorInt()
+        color = AccentPalette.LIGHT.underlineFallback
         style = Paint.Style.FILL
     }
 
     // ==================== 选区手柄画笔 ====================
 
     val handlePaint = Paint().apply {
-        color = Color.GREEN
+        color = AccentPalette.LIGHT.selectionHandle
         style = Paint.Style.FILL
         strokeWidth = 8f
     }
 
     val handleStrokePaint = Paint().apply {
-        color = Color.GREEN
+        color = AccentPalette.LIGHT.selectionHandle
         style = Paint.Style.STROKE
         strokeWidth = 3f
         isAntiAlias = true
@@ -170,16 +245,13 @@ object RenderResources {
         inlineScale: Float,
         inlineColor : String? = null
     ) {
-        // ① display=block， apply book's CSS style for text size and text color, not the user's preferences
-        if (!isTitle && textCssInfo != null && textCssInfo.display == "block") {
-            if (textCssInfo.fontSize.isEm()) {
-                drawingPaint.textSize *= textCssInfo.fontSize.value
-            } else if (textCssInfo.fontSize.isPx()) {
-                drawingPaint.textSize = textCssInfo.fontSize.value
+        // ① 段级作者样式（AS-1 §3.1/§3.6.3，display:block 门控退役）：字号归一化（倍率作用于
+        //    用户基准，em/rem 直乘、%/100、px 锚定 BASE_FONT_SIZE）+ 颜色按三态模式应用
+        if (!isTitle && textCssInfo != null) {
+            textCssInfo.fontSize.toFontScale(BASE_FONT_SIZE)?.let { scale ->
+                drawingPaint.textSize *= scale
             }
-            textCssInfo.fontColor.takeIf { it.isNotEmpty() }?.toColor()?.let { color ->
-                drawingPaint.color = color
-            }
+            applyAuthorColor(textCssInfo.fontColor)
         }
 
         // ② inline scale
@@ -187,11 +259,10 @@ object RenderResources {
             drawingPaint.textSize *= inlineScale
         }
 
-        // ③ inline color
+        // ③ inline color：与段级同一三态规则（THEME 不覆盖=继承①之后色；SMART 可读才覆盖；
+        //    BOOK 无条件覆盖）。表格单元格内不进入本入口（ContentTextView isTableCell 排除）。
         if (!isTitle && !ch.isImage) {
-            inlineColor?.toColor()?.let { color ->
-                drawingPaint.color = color
-            }
+            applyAuthorColor(inlineColor)
         }
 
         // ④ fontWeight / fontStyle

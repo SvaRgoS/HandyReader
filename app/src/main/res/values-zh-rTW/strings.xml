@@ -150,6 +150,10 @@
     <string name="color_settings">顏色設定</string>
     <string name="background_color">背景顏色或圖片</string>
     <string name="text_color">文字顏色</string>
+    <string name="book_color_mode">書籍字體顏色</string>
+    <string name="book_color_mode_smart">智慧對比</string>
+    <string name="book_color_mode_theme">跟隨主題</string>
+    <string name="book_color_mode_book">跟隨書籍</string>
     <string name="select_color">選擇 %1$s 顏色</string>
     <string name="no_books_in">%1$s 中沒有書籍</string>
     <string name="to_get_started_please_select_a_directory_where_you_would_like_to_load_your_books">開始使用前，請選擇要載入書籍的目錄。</string>

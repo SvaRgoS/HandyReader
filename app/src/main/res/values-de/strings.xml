@@ -151,6 +151,10 @@
     <string name="color_settings">Farbeinstellungen</string>
     <string name="background_color">Hintergrundfarbe oder Bild</string>
     <string name="text_color">Textfarbe</string>
+    <string name="book_color_mode">Schriftfarbe des Buchs</string>
+    <string name="book_color_mode_smart">Intelligent</string>
+    <string name="book_color_mode_theme">Design folgen</string>
+    <string name="book_color_mode_book">Buch folgen</string>
     <string name="select_color">%1$s Farbe auswählen</string>
     <string name="no_books_in">Keine Bücher in %1$s</string>
     <string name="to_get_started_please_select_a_directory_where_you_would_like_to_load_your_books">Um zu beginnen, wählen Sie bitte ein Verzeichnis aus, in dem Sie Ihre Bücher laden möchten.</string>

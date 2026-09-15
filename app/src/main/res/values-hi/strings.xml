@@ -152,6 +152,10 @@
     <string name="color_settings">रंग सेटिंग्स</string>
     <string name="background_color">पृष्ठभूमि रंग या छवि</string>
     <string name="text_color">टेक्स्ट रंग</string>
+    <string name="book_color_mode">पुस्तक फ़ॉन्ट रंग</string>
+    <string name="book_color_mode_smart">स्मार्ट</string>
+    <string name="book_color_mode_theme">थीम अनुसार</string>
+    <string name="book_color_mode_book">पुस्तक अनुसार</string>
     <string name="select_color">%1$s रंग चुनें</string>
     <string name="no_books_in">%1$s में कोई पुस्तक नहीं</string>
     <string name="welcome_to_uread">HandyReader में आपका स्वागत है!</string>

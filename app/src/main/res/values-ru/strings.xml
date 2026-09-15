@@ -153,6 +153,10 @@
     <string name="color_settings">Настройки цвета</string>
     <string name="background_color">Цвет фона или изображение</string>
     <string name="text_color">Цвет текста</string>
+    <string name="book_color_mode">Цвет шрифта книги</string>
+    <string name="book_color_mode_smart">Умный</string>
+    <string name="book_color_mode_theme">Как в теме</string>
+    <string name="book_color_mode_book">Как в книге</string>
     <string name="select_color">Выбрать цвет %1$s</string>
     <string name="no_books_in">Нет книг в %1$s</string>
     <string name="to_get_started_please_select_a_directory_where_you_would_like_to_load_your_books">Чтобы начать, выберите директорию, где вы хотели бы загрузить свои книги.</string>

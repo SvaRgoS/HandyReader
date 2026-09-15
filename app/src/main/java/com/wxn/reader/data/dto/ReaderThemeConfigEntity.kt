@@ -23,6 +23,7 @@ import androidx.room.PrimaryKey
  * @param themeId 主键，10 个预设 id 之一（亮：default/cream/classic/sepia/green；暗：amoled_black/night/dark_blue/dark_grey/dark_green）
  * @param userTextAlign 用户对齐方式（1=Left/2=Right/3=Center/4=Justify），v11 新增
  * @param forceAlignOverride 是否强制覆盖书籍 CSS 对齐（0=false/1=true），v11 新增
+ * @param bookColorMode 「书籍字体颜色」三态开关（SMART/THEME/BOOK，枚举 name 字符串），AS-1 P2 新增（DB v12，缺省 SMART）
  * @param updatedAt 最后更新时间（epoch millis）
  */
 @Entity(tableName = "reader_theme_configs")
@@ -44,6 +45,7 @@ data class ReaderThemeConfigEntity(
     val titleSize: Double,
     val titleTopSpacing: Double,
     val titleBottomSpacing: Double,
+    val bookColorMode: String = "SMART",
     val userTextAlign: Int = 4,
     val forceAlignOverride: Int = 0,
     val updatedAt: Long = System.currentTimeMillis(),

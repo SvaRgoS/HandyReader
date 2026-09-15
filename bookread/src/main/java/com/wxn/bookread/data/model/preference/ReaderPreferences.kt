@@ -76,6 +76,7 @@ data class ReaderPreferences(
     val readingProgression: ConfigReadingProgression,       //阅读方向/从左向右/从右向左
     val verticalText: Boolean,                      //垂直文本
     val publisherStyles: Boolean,                   //出版商样式
+    val bookColorMode: BookColorMode = BookColorMode.SMART,  //书籍字体颜色三态开关(智能对比/跟随主题/跟随书籍)
     val textNormalization: Boolean,                 //文字格式化
     val volumeKeyPageTurning: Boolean = false,       //音量键翻页，默认关闭
     val clickAreaMode: Int = 0,                     //点击区域模式: 0=中间区域(centerRectF), 1=顶部区域(topRectF)

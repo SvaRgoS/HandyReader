@@ -14,7 +14,7 @@ package com.wxn.bookread.data.model.preference
  * 说明：本类位于 bookread 模块，不持有 displayNameRes（字符串资源在 app 模块）。
  * 主题的 i18n 显示名由 app 模块的预设注册表（ReaderThemePresets）映射 themeId → R.string.xxx。
  *
- * @param themeId 稳定唯一标识（持久化用，不可变更）。9 个枚举值见 app 模块 ReaderThemePresets。
+ * @param themeId 稳定唯一标识（持久化用，不可变更）。10 个枚举值见 app 模块 ReaderThemePresets。
  * @param backgroundColor 背景色 ARGB。
  * @param textColor 文字色（墨色）ARGB。
  * @param backgroundImage 背景图路径，所有预设恒为空串（预设不依赖用户自定义背景图）。
@@ -30,6 +30,7 @@ package com.wxn.bookread.data.model.preference
  * @param titleSize 标题字号系数（保留字段，方案A后标题随 fontSize 联动，此值不再被渲染层读取，恒为默认 1.0）。
  * @param titleTopSpacing 标题顶部间距（dp）。
  * @param titleBottomSpacing 标题底部间距（dp）。
+ * @param bookColorMode 「书籍字体颜色」三态开关（AS-1 P2，主题字段第 18 员，默认 SMART；随主题存档/恢复/重置）。
  * @param isDark 该预设是否为暗色主题（代码常量，**不入库**：仅作为 5+5 分组与模式联动的依据）。
  * @param sortOrder 同模式内的稳定排序（亮色 0-4，暗色 5-9），用于主题选择器渲染顺序。
  */
@@ -50,6 +51,7 @@ data class ReaderThemePreset(
     @Suppress("unused") val titleSize: Double = 1.0,
     val titleTopSpacing: Double = 18.0,
     val titleBottomSpacing: Double = 15.0,
+    val bookColorMode: BookColorMode = BookColorMode.SMART,
     val isDark: Boolean = false,
     val sortOrder: Int = 0,
 )

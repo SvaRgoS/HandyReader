@@ -151,6 +151,10 @@
     <string name="color_settings">Color Settings</string>
     <string name="background_color">Background Color or Image</string>
     <string name="text_color">Text Color</string>
+    <string name="book_color_mode">Book font color</string>
+    <string name="book_color_mode_smart">Smart</string>
+    <string name="book_color_mode_theme">Follow theme</string>
+    <string name="book_color_mode_book">Follow book</string>
     <string name="select_color">Select %1$s Color</string>
     <string name="no_books_in">No books in %1$s</string>
     <string name="to_get_started_please_select_a_directory_where_you_would_like_to_load_your_books">To get started, please select a directory where you would like to load your books.</string>

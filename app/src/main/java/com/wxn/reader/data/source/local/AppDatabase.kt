@@ -81,7 +81,7 @@ import com.wxn.reader.data.dto.ReaderThemeConfigEntity
         PerBookMetaEntity::class,
         PerBookThemeOverrideEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -727,6 +727,25 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_per_book_theme_overrides_bookId` ON `per_book_theme_overrides`(`bookId`)")
 
                 db.execSQL("ALTER TABLE books ADD COLUMN txtCharset TEXT")
+            }
+        }
+
+        /**
+         * AS-1 P2 完全主题化（2026-08-28 方案 §3.7，DB v12）：reader_theme_configs 与
+         * per_book_theme_overrides 双表各加 bookColorMode 列（枚举 name 字符串，缺省 SMART）。
+         *
+         * SQL DEFAULT + 实体 Kotlin 默认值模式与 [Migration_10_11] 完全同款（该模式已经
+         * MigrationTestHelper 真机校验，Room schema 比对兼容）。存量行迁移后为 SMART——
+         * v11 时代不存在此开关，无语义损失；用户随后任何一次 saveCurrent（切主题/改设置）
+         * 即以真实值覆盖。
+         *
+         * **不提供降级迁移**：项目发布策略"只前进修复"，无 fallbackToDestructiveMigration，
+         * 防护靠写对 SQL + MigrationTestHelper 校验测试（Migration11To12Test，硬门禁）。
+         */
+        val Migration_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE reader_theme_configs ADD COLUMN bookColorMode TEXT NOT NULL DEFAULT 'SMART'")
+                db.execSQL("ALTER TABLE per_book_theme_overrides ADD COLUMN bookColorMode TEXT NOT NULL DEFAULT 'SMART'")
             }
         }
     }

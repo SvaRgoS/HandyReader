@@ -50,6 +50,13 @@ class CssUnit(
 
     companion object {
         /**
+         * 段级/span 级作者字号倍率 clamp 范围（防损坏 EPUB：0.5x ~ 5.0x）。
+         * 原 ReaderText.MIN/MAX_INLINE_SCALE 提为公开共用（值不变）。
+         */
+        const val MIN_FONT_SCALE = 0.5f
+        const val MAX_FONT_SCALE = 5.0f
+
+        /**
          * A dimension used to represent a hairline drawing element. Hairline elements take up no
          * space, but will draw a single pixel, independent of the device's resolution and density.
          */
@@ -132,3 +139,16 @@ class CssUnit(
         fun Percent(value: Float) = CssUnit(value, UnitType.Percent)
     }
 }
+
+/**
+ * AS-1 §3.1：作者字号 → 作用于用户基准的倍率（单一真相源，渲染侧/排版侧共用）。
+ * - em/rem：值即倍率；percent：值/100；px：值/basePx（锚定应用默认正文基准，非 CSS 16px——
+ *   [CssUnit.format] 解析期已把 px/pt clamp 到 [48,84]，px/16 会把 Calibre 12pt 书放大 3 倍）；
+ * - Undifined/Auto → null（不缩放）；结果 clamp 到 [MIN_FONT_SCALE, MAX_FONT_SCALE]。
+ */
+fun CssUnit.toFontScale(basePx: Float): Float? = when {
+    isEm() -> value
+    isPercent() -> value / 100f
+    isPx() -> value / basePx
+    else -> null
+}?.coerceIn(CssUnit.MIN_FONT_SCALE, CssUnit.MAX_FONT_SCALE)
