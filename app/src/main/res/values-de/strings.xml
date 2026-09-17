@@ -206,6 +206,10 @@
     <string name="version">Version</string>
     <string name="what_s_new">Was ist neu</string>
     <string name="privacy_policy">Datenschutzrichtlinie</string>
+    <string name="cd_official_website">Offizielle Website</string>
+    <string name="cd_github_project">GitHub-Projekt</string>
+    <string name="about_copyright">© 2026 WhiteBear Studio</string>
+    <string name="about_open_source_license">Open-Source-Projekt, GPL-3.0-Lizenz</string>
     <string name="libraries">Bibliotheken</string>
     <string name="feature_request">Funktionsanfrage / Fehlerbericht</string>
     <string name="selected" tools:override="true">%1$s ausgewählt</string>

@@ -212,6 +212,10 @@
     <string name="version">الإصدار</string>
     <string name="what_s_new">الجديد</string>
     <string name="privacy_policy">سياسة الخصوصية</string>
+    <string name="cd_official_website">الموقع الرسمي</string>
+    <string name="cd_github_project">مشروع GitHub</string>
+    <string name="about_copyright">© 2026 WhiteBear Studio</string>
+    <string name="about_open_source_license">مشروع مفتوح المصدر، رخصة GPL-3.0</string>
     <string name="libraries">المكتبات</string>
     <string name="feature_request">طلب ميزة / الإبلاغ عن خطأ</string>
     <string name="selected" tools:override="true">تم اختيار %1$s</string>

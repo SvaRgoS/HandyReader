@@ -158,4 +158,42 @@ class OpdsUrlAssistTest {
         assertFalse(OpdsUrlAssist.isValid("https://a b"))
         assertFalse(OpdsUrlAssist.isValid("https://"))
     }
+
+    // ---------- collapseDuplicatedPathSegment ----------
+    // 方案 docs/plans/2026-09-17-plan-opds-load-more-404-fallback.md §4
+
+    /** U1：Kavita 畸形 next 链接经 RFC 合并后 apiKey 段重复——折叠为单段，query 原样保留 */
+    @Test
+    fun `collapse folds first duplicated path segment and keeps query`() {
+        val collapsed = OpdsUrlAssist.collapseDuplicatedPathSegment(
+            "http://192.168.1.5:5000/api/opds/K3aF/K3aF/recently-updated?pageNumber=2"
+        )
+        assertEquals(
+            "http://192.168.1.5:5000/api/opds/K3aF/recently-updated?pageNumber=2",
+            collapsed
+        )
+    }
+
+    /** U2：无重复段的正常 URL 原样返回 */
+    @Test
+    fun `collapse returns normal url unchanged`() {
+        val url = "http://192.168.1.5:5000/api/opds/K3aF/series?page=2"
+        assertEquals(url, OpdsUrlAssist.collapseDuplicatedPathSegment(url))
+    }
+
+    /** U3：连续三段重复仅折叠第一处，不迭代 */
+    @Test
+    fun `collapse folds only first occurrence without iteration`() {
+        assertEquals("/a/a/x", OpdsUrlAssist.collapseDuplicatedPathSegment("/a/a/a/x"))
+    }
+
+    /** U4：query 串中的重复文本不受影响；无 path 的纯 query URL 原样返回 */
+    @Test
+    fun `collapse leaves query strings untouched`() {
+        assertEquals(
+            "http://a.b/p?u=/x/x/x",
+            OpdsUrlAssist.collapseDuplicatedPathSegment("http://a.b/p?u=/x/x/x")
+        )
+        assertEquals("?u=/x/x/x", OpdsUrlAssist.collapseDuplicatedPathSegment("?u=/x/x/x"))
+    }
 }

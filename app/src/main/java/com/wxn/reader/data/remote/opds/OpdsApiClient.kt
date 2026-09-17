@@ -202,7 +202,9 @@ class OpdsApiClient @Inject constructor(
 
             val templateUrl = parseOpenSearchTemplate(xml)
             if (templateUrl != null) {
-                val resolvedUrl = OpdsFeedParser.resolveUrl(context, searchDocUrl, templateUrl)
+                // 模板含 {…} 占位符（URI 非法字符），须经 resolveTemplateUrl 编码后归一，
+                // 否则 resolveUrl 对花括号解析失败会静默返回相对值并被持久化
+                val resolvedUrl = OpdsFeedParser.resolveTemplateUrl(context, searchDocUrl, templateUrl)
                 Result.success(
                     feed.copy(
                         searchUrl = resolvedUrl,

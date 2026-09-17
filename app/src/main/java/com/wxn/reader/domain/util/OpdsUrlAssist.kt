@@ -89,6 +89,24 @@ object OpdsUrlAssist {
         return isAcceptableHost(host)
     }
 
+    /** 相邻重复路径段：/seg/seg 形态（seg 内不含 / ? #），第二段须以 / 或串尾收尾 */
+    private val DUPLICATED_SEGMENT = Regex("""/([^/?#]+)/\1(?=/|$)""")
+
+    /**
+     * 折叠 URL 路径中第一处连续重复的路径段（仅一处、不迭代、大小写敏感）。
+     * 用于兼容服务端畸形相对链接经 RFC 合并后产生的段重复，如：
+     * /api/opds/{key}/{key}/recently-updated?p=2 → /api/opds/{key}/recently-updated?p=2
+     * 无重复段时原样返回；query/fragment 原样保留。
+     */
+    fun collapseDuplicatedPathSegment(url: String): String {
+        val cut = url.indexOfFirst { it == '?' || it == '#' }
+        val head = if (cut < 0) url else url.substring(0, cut)
+        val tail = if (cut < 0) "" else url.substring(cut)
+        val match = DUPLICATED_SEGMENT.find(head) ?: return url
+        val secondSegmentStart = match.range.first + 1 + match.groupValues[1].length
+        return head.removeRange(secondSegmentStart, match.range.last + 1) + tail
+    }
+
     private fun isAcceptableHost(host: String): Boolean {
         if (host.isEmpty() || host.contains(' ')) return false
         if (host.equals("localhost", ignoreCase = true)) return true

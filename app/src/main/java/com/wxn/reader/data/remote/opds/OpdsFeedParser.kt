@@ -125,6 +125,9 @@ object OpdsFeedParser {
     }
 
     private fun isPrivateHost(host: String): Boolean {
+        // 无点单标签主机名（如 http://mynas:8080）无法公网解析，只存在于本机/局域网，保持 http；
+        // 顺带覆盖 upgradeToHttps 对 IPv6 字面量（http://[::1]:8080）截取出的 "[" 形态
+        if (!host.contains('.')) return true
         val ipv4 = host.split(".")
         if (ipv4.size == 4 && ipv4.all { it.toIntOrNull() != null }) {
             val first = ipv4[0].toInt()
@@ -149,6 +152,33 @@ object OpdsFeedParser {
         } catch (_: Exception) {
             relative
         }
+    }
+
+    /** OpenSearch 模板占位符：{searchTerms}、{startIndex} 等（花括号为 URI 非法字符） */
+    private val TEMPLATE_PLACEHOLDER = Regex("""\{[^{}]+\}""")
+
+    /**
+     * 解析 OpenSearch 查询模板为绝对 URL。模板含 {searchTerms} 等占位符（花括号不能直接过
+     * URI 解析）：先对全部占位符做百分号编码，解析后逐一还原。
+     * 已是绝对地址的模板经 resolveUrl 原样透传（含既有 http→https 升级规则，行为不变）。
+     */
+    fun resolveTemplateUrl(context: Context, base: String?, template: String): String {
+        val placeholders = TEMPLATE_PLACEHOLDER.findAll(template)
+            .map { it.value }
+            .distinct()
+            .toList()
+        if (placeholders.isEmpty()) return resolveUrl(context, base, template)
+        fun encode(placeholder: String) =
+            placeholder.replace("{", "%7B").replace("}", "%7D")
+        var encoded = template
+        for (placeholder in placeholders) {
+            encoded = encoded.replace(placeholder, encode(placeholder))
+        }
+        var resolved = resolveUrl(context, base, encoded)
+        for (placeholder in placeholders) {
+            resolved = resolved.replace(encode(placeholder), placeholder)
+        }
+        return resolved
     }
 
     private fun readFeed(
@@ -376,6 +406,11 @@ object OpdsFeedParser {
                 if (it.startsWith("data:")) saveDataUriToCache(context, it) ?: it
                 else it
             } ?: bestCover
+
+        // Atom 规范要求条目必有 <id>；缺失时按标题+全部链接合成确定性 id，避免下游按 id 去重/缓存时把整页折叠
+        if (id.isBlank()) {
+            id = "urn:handyreader:synthetic:" + (title + links.joinToString("") { it.href }).hashCode()
+        }
 
         return OpdsEntry(
             id = id,

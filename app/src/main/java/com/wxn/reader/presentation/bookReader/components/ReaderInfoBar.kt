@@ -10,6 +10,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,7 +63,7 @@ import kotlinx.coroutines.delay
 import java.util.Calendar
 import java.util.Locale
 
-/** 滚动模式 scrim 高度 = 条高 + 16dp（产品方案 §5.2） */
+/** 滚动模式非内容区渐变带高度（scrim 总高 = 条高 + 16dp，产品方案 §5.2） */
 private val SCRIM_EXTRA = 16.dp
 
 // ---- 电量槽电池图形绘制细节（跨层共享的规格常量在 InfoBarSpec，见方案审查建议 2）----
@@ -284,19 +285,18 @@ fun ReaderInfoBar(
     }
 
     if (isScrollMode) {
-        // 滚动模式：渐变 scrim + 信息条（正文从其下穿过；scrim 方向随 topScrim）
+        // 滚动模式：内容区实心底遮断穿过的正文，非内容区渐变带保留淡出层次。
+        // 原单一 40dp 整条渐变在 24dp 文字带内不透明度仅 100%→40%，正文透出与信息条文字重叠
         Box(modifier = modifier.height(InfoBarSpec.BAR_HEIGHT_DP.dp + SCRIM_EXTRA)) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = if (topScrim) {
-                            Brush.verticalGradient(listOf(scrimColor, Color.Transparent))
-                        } else {
-                            Brush.verticalGradient(listOf(Color.Transparent, scrimColor))
-                        }
-                    )
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (topScrim) {
+                    SolidScrimBand(scrimColor)
+                    GradientScrimBand(scrimColor, fadeOut = true)
+                } else {
+                    GradientScrimBand(scrimColor, fadeOut = false)
+                    SolidScrimBand(scrimColor)
+                }
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -311,6 +311,40 @@ fun ReaderInfoBar(
             barContent()
         }
     }
+}
+
+/**
+ * 内容区实心底：与阅读背景同色（backgroundColor 全部写入路径均不透明，见方案 §2.3），
+ * 遮断从信息条下穿过的正文。
+ */
+@Composable
+private fun SolidScrimBand(color: Color) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(InfoBarSpec.BAR_HEIGHT_DP.dp)
+            .background(color)
+    )
+}
+
+/**
+ * 非内容区渐变带：贴条带侧为 color，向外淡出到透明（fadeOut=true 为顶部条方向）。
+ * 起始色与实心底同色，衔接处无缝。
+ */
+@Composable
+private fun GradientScrimBand(color: Color, fadeOut: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(SCRIM_EXTRA)
+            .background(
+                brush = if (fadeOut) {
+                    Brush.verticalGradient(listOf(color, Color.Transparent))
+                } else {
+                    Brush.verticalGradient(listOf(Color.Transparent, color))
+                }
+            )
+    )
 }
 
 /**

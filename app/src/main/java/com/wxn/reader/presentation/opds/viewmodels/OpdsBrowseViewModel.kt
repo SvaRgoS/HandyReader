@@ -10,8 +10,10 @@ import com.wxn.reader.R
 import com.wxn.reader.data.model.opds.OpdsEntry
 import com.wxn.reader.data.remote.opds.OpdsAuthException
 import com.wxn.reader.data.remote.opds.OpdsContentTypeException
+import com.wxn.reader.data.remote.opds.OpdsFeedParser
 import com.wxn.reader.data.remote.opds.OpdsNetworkException
 import com.wxn.reader.data.remote.opds.OpdsParseException
+import com.wxn.reader.domain.util.OpdsUrlAssist
 import com.wxn.reader.data.model.opds.OpdsEntryCache
 import com.wxn.reader.domain.use_case.opds.BrowseOpdsFeedUseCase
 import com.wxn.reader.domain.use_case.opds.ManageOpdsCatalogUseCase
@@ -89,7 +91,8 @@ class OpdsBrowseViewModel @Inject constructor(
 
     fun fetchFeed(url: String, title: String = "") {
         launchFetch { gen ->
-            _uiState.update { it.copy(isLoading = true, error = null, hasLoadMoreError = false, showAuthDialog = false, currentUrl = url) }
+            // 新代际启动即清上一代 loadMore 的瞬态标志（旧回调被代际守卫挡掉、取消路径不清零）
+            _uiState.update { it.copy(isLoading = true, error = null, hasLoadMoreError = false, isLoadingMore = false, showAuthDialog = false, currentUrl = url) }
             browseFeedUseCase(catalogId, url).fold(
                 onSuccess = { feed ->
                     if (gen != fetchGeneration) return@fold
@@ -150,30 +153,51 @@ class OpdsBrowseViewModel @Inject constructor(
             _uiState.update { it.copy(isLoadingMore = true, hasLoadMoreError = false) }
             browseFeedUseCase(catalogId, nextUrl, useCache = false).fold(
                 onSuccess = { nextFeed ->
-                    if (gen != fetchGeneration) return@fold
-                    val sanitizedNextFeed = sanitizeFeed(nextFeed)
-                    _uiState.update { state ->
-                        val allNewEntries = sanitizedNextFeed.entries + sanitizedNextFeed.groups.flatMap { it.entries }
-                        state.copy(
-                            feed = sanitizedNextFeed,
-                            entries = (state.entries + allNewEntries).distinctBy { it.id },
-                            facets = sanitizedNextFeed.facets.ifEmpty { state.facets },
-                            isLoadingMore = false,
-                            hasLoadMoreError = false
-                        )
-                    }
+                    applyNextFeed(gen, nextFeed)
                 },
                 onFailure = { error ->
-                    if (gen != fetchGeneration) return@fold
-                    _uiState.update { state ->
-                        state.copy(
-                            isLoadingMore = false,
-                            hasLoadMoreError = true
+                    // Kavita 0.8.x 畸形 next 链接（丢 /api/opds/ 前缀）经 RFC 合并后路径段重复而 404；
+                    // 仅确定性 404 时按折叠重复路径段兜底重试一次，其余失败不吞错误
+                    val collapsedUrl = if (error is OpdsNetworkException && error.statusCode == 404) {
+                        OpdsUrlAssist.collapseDuplicatedPathSegment(nextUrl)
+                    } else {
+                        null
+                    }
+                    if (collapsedUrl != null && collapsedUrl != nextUrl) {
+                        browseFeedUseCase(catalogId, collapsedUrl, useCache = false).fold(
+                            onSuccess = { retriedFeed ->
+                                applyNextFeed(gen, retriedFeed)
+                            },
+                            onFailure = {
+                                markLoadMoreFailed(gen)
+                            }
                         )
+                    } else {
+                        markLoadMoreFailed(gen)
                     }
                 }
             )
         }
+    }
+
+    private fun applyNextFeed(gen: Int, nextFeed: OpdsFeed) {
+        if (gen != fetchGeneration) return
+        val sanitizedNextFeed = sanitizeFeed(nextFeed)
+        _uiState.update { state ->
+            val allNewEntries = sanitizedNextFeed.entries + sanitizedNextFeed.groups.flatMap { it.entries }
+            state.copy(
+                feed = sanitizedNextFeed,
+                entries = (state.entries + allNewEntries).distinctBy { it.id },
+                facets = sanitizedNextFeed.facets.ifEmpty { state.facets },
+                isLoadingMore = false,
+                hasLoadMoreError = false
+            )
+        }
+    }
+
+    private fun markLoadMoreFailed(gen: Int) {
+        if (gen != fetchGeneration) return
+        _uiState.update { it.copy(isLoadingMore = false, hasLoadMoreError = true) }
     }
 
     fun showBookDetail(entry: OpdsEntry) {
@@ -324,10 +348,14 @@ class OpdsBrowseViewModel @Inject constructor(
         } else {
             searchUrl
         }
+        // 存量目录可能存有相对模板（花括号致 URI 解析失败被静默保存）：使用点兜底归一为绝对地址
+        val normalizedSearchUrl = OpdsFeedParser.resolveTemplateUrl(
+            context, catalog.url, effectiveSearchUrl
+        )
 
         launchFetch { gen ->
-            _uiState.update { it.copy(isSearching = true, searchQuery = query) }
-            searchUseCase(catalogId, effectiveSearchUrl, query).fold(
+            _uiState.update { it.copy(isSearching = true, searchQuery = query, isLoadingMore = false) }
+            searchUseCase(catalogId, normalizedSearchUrl, query).fold(
                 onSuccess = { feed ->
                     if (gen != fetchGeneration) return@fold
                     val allEntries = feed.entries + feed.groups.flatMap { it.entries }

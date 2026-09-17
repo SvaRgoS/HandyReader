@@ -11,19 +11,24 @@ import javax.inject.Singleton
 
 @Singleton
 class OpdsCredentialStore @Inject constructor(
-    @ApplicationContext context: Context
+    @ApplicationContext private val context: Context
 ) {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    // 惰性初始化：AndroidKeyStore 仅在真正读写凭据时才访问（Robolectric 等无 KeyStore 环境可安全构造本类）
+    private val masterKey: MasterKey by lazy {
+        MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+    }
 
-    private val prefs: SharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        "opds_credentials",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val prefs: SharedPreferences by lazy {
+        EncryptedSharedPreferences.create(
+            context,
+            "opds_credentials",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
     fun saveCredentials(catalogId: Long, username: String, password: String) {
         prefs.edit()

@@ -205,6 +205,10 @@
     <string name="version">バージョン</string>
     <string name="what_s_new">新機能</string>
     <string name="privacy_policy">プライバシーポリシー</string>
+    <string name="cd_official_website">公式サイト</string>
+    <string name="cd_github_project">GitHub プロジェクト</string>
+    <string name="about_copyright">© 2026 WhiteBear Studio</string>
+    <string name="about_open_source_license">オープンソースプロジェクト（GPL-3.0ライセンス）</string>
     <string name="libraries">ライブラリ</string>
     <string name="feature_request">機能リクエスト / バグ報告</string>
     <string name="selected" tools:override="true">%1$s 選択中</string>

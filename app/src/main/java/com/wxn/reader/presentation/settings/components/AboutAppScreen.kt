@@ -4,8 +4,11 @@ import android.content.Context
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,8 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -45,9 +48,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,6 +68,7 @@ import com.google.android.play.core.review.ReviewManagerFactory
 import com.google.android.play.core.review.model.ReviewErrorCode
 import com.mikepenz.markdown.m3.Markdown
 import com.wxn.base.ext.goShop
+import com.wxn.base.ext.openUrl
 import com.wxn.base.util.Logger
 import com.wxn.reader.R
 import com.wxn.reader.data.model.AppTheme
@@ -69,6 +81,9 @@ import com.wxn.reader.util.ApkUpdateDownloader
 import com.wxn.reader.util.getAppVersion
 import com.wxn.reader.util.customMarkdownTypography
 import java.io.IOException
+
+private const val OFFICIAL_WEBSITE_URL = "https://handyreader.top"
+private const val GITHUB_PROJECT_URL = "https://github.com/EucWang/HandyReader"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,12 +133,16 @@ fun AboutAppScreen(
             )
         },
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            item {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 // 大图标头部：对齐"我的"页（HomeMinePanel）布局
                 Row(
                     modifier = Modifier
@@ -139,12 +158,14 @@ fun AboutAppScreen(
                             contentDescription = stringResource(R.string.app_logo_content_desc),
                             modifier = Modifier.size(150.dp)
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = stringResource(context.applicationInfo.labelRes),
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.offset(y = (-28).dp)
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "v${appVersion?.versionName ?: "Unknown"}",
                             style = MaterialTheme.typography.titleSmall,
@@ -154,9 +175,7 @@ fun AboutAppScreen(
                 }
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(16.dp))
-            }
 
-            item {
                 SetListItem(
                     isDarkTheme = isDarkTheme,
                     text = if (updateState is AboutViewModel.UpdateUiState.Checking) {
@@ -168,9 +187,7 @@ fun AboutAppScreen(
                 ) {
                     viewModel.checkForUpdate()
                 }
-            }
 
-            item {
                 SetListItem(
                     isDarkTheme = isDarkTheme,
                     text = stringResource(R.string.rate_the_app),
@@ -200,9 +217,7 @@ fun AboutAppScreen(
                         }
                     }
                 }
-            }
 
-            item {
                 SetListItem(
                     isDarkTheme = isDarkTheme,
                     text = stringResource(R.string.privacy_policy),
@@ -210,7 +225,14 @@ fun AboutAppScreen(
                 ) {
                     showPrivacyPolicyModal = true
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                LinkIconsRow(
+                    isDarkTheme = isDarkTheme,
+                    onOpenUrl = { context.openUrl(it) }
+                )
             }
+            CopyrightFooter()
         }
     }
 
@@ -251,7 +273,7 @@ fun AboutAppScreen(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
-                androidx.compose.foundation.layout.Box(
+                Box(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
@@ -328,4 +350,102 @@ private fun UpdateAvailableDialog(
             }
         }
     )
+}
+
+/** 官网 / GitHub 圆形图标行：点击经浏览器外跳，语义见各按钮 contentDescription。 */
+@Composable
+private fun LinkIconsRow(isDarkTheme: Boolean, onOpenUrl: (String) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(40.dp, Alignment.CenterHorizontally)
+    ) {
+        CircularLinkButton(
+            label = stringResource(R.string.cd_official_website),
+            isDarkTheme = isDarkTheme,
+            onClick = { onOpenUrl(OFFICIAL_WEBSITE_URL) }
+        ) {
+            // 应用图标圆形化：ic_launcher_foreground 自带 adaptive 图标安全区留白，
+            // 56dp 满铺后视觉尺寸合适（与页头同源）
+            Image(
+                painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.size(42.dp)
+            )
+        }
+        CircularLinkButton(
+            label = stringResource(R.string.cd_github_project),
+            isDarkTheme = isDarkTheme,
+            onClick = { onOpenUrl(GITHUB_PROJECT_URL) }
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_github),
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+/** 圆形外链按钮：配色与阴影复刻 SetListItem 卡片风格，合并语义朗读 label。 */
+@Composable
+private fun CircularLinkButton(
+    label: String,
+    isDarkTheme: Boolean,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .shadow(
+                elevation = 4.dp,
+                shape = CircleShape,
+                spotColor = if (!isDarkTheme) {
+                    Color.Black.copy(alpha = 0.8f)
+                } else {
+                    Color.Black.copy(alpha = 0.5f)
+                }
+            )
+            .clip(CircleShape)
+            .background(
+                if (isDarkTheme) {
+                    Color.White.copy(alpha = 0.09f)
+                        .compositeOver(MaterialTheme.colorScheme.surface)
+                } else {
+                    MaterialTheme.colorScheme.surface
+                }
+            )
+            .clickable(onClick = onClick)
+            .semantics {
+                contentDescription = label
+                role = Role.Button
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        icon()
+    }
+}
+
+/** 页脚版权区：锚定页面底部，纯声明文本不可点击。 */
+@Composable
+private fun CopyrightFooter() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.about_copyright),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.about_open_source_license),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }

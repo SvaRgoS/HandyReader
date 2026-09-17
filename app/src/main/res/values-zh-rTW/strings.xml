@@ -205,6 +205,10 @@
     <string name="version">版本</string>
     <string name="what_s_new">新功能</string>
     <string name="privacy_policy">隱私權政策</string>
+    <string name="cd_official_website">官方網站</string>
+    <string name="cd_github_project">GitHub 專案</string>
+    <string name="about_copyright">© 2026 WhiteBear Studio</string>
+    <string name="about_open_source_license">開源專案，GPL-3.0 授權</string>
     <string name="libraries">程式庫</string>
     <string name="feature_request">功能請求 / 錯誤回報</string>
     <string name="selected" tools:override="true">已選取 %1$s</string>
