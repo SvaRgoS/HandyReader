@@ -45,7 +45,7 @@ class FileParserImpl @Inject constructor(
                 epubFileParser.parse(file)
             }
 
-            in listOf("mobi", "azw3") -> {
+            in MOBI_FAMILY_EXTENSIONS -> {
                 mobiFileParser.parse(file)
             }
 
@@ -100,7 +100,7 @@ class FileParserImpl @Inject constructor(
             "epub" -> {
                 epubFileParser.parse(cachedFile)
             }
-            in listOf("mobi", "azw3") -> {
+            in MOBI_FAMILY_EXTENSIONS -> {
                 mobiFileParser.parse(cachedFile)
             }
             "txt" -> {

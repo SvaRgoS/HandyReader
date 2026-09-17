@@ -1610,8 +1610,20 @@ class MainReadViewModel @Inject constructor(
                 }
 
                 Logger.d("MainReaderViewModel:bookload:load reset book to pageController:${System.currentTimeMillis()}")
+                // ★ 初始加载看门狗（plan-reader-initial-load-stuck-fix v2.1 改动2）：终态检测覆盖不到
+                // loadChapter 永久挂起（DB/原生库卡死），超时强制落 Error，杜绝任何未知路径的永久
+                // 封面+spinner。复用 LOADING_TIMEOUT_MS（30s）；仅当仍处 Loading 时生效；慢而未死
+                // 场景下 LOAD_SUCCESS 后写覆盖 Error 的边界已声明接受（v2.1 风险 R-3）。
+                val initWatchdogJob = viewModelScope.launch {
+                    delay(LOADING_TIMEOUT_MS)
+                    if (_uiState.value is BookReaderUiState.Loading) {
+                        Logger.e("MainReadViewModel:bookload: init load watchdog timeout (${LOADING_TIMEOUT_MS}ms), force Error")
+                        _uiState.value = BookReaderUiState.Error(context.getString(R.string.chapter_load_failed))
+                    }
+                }
                 stopAutoReadInternal()   // 切书停止自动阅读（方案 §7.6）
                 pageControllerOwnerToken = pageController.resetBook(newBook) { success ->//重新加载章节数
+                    initWatchdogJob.cancel()   // ★ 回调到达即撤销看门狗（成功/失败两分支共用入口）
                     if (success) {
                         Logger.d("MainReaderViewModel:bookload: LOAD_SUCCESS @ ${System.currentTimeMillis()}")
                         _uiState.value = BookReaderUiState.LOAD_SUCCESS

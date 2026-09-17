@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Copyright
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.StarRate
 import androidx.compose.material.icons.outlined.Update
@@ -66,6 +67,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.play.core.review.ReviewException
 import com.google.android.play.core.review.ReviewManagerFactory
 import com.google.android.play.core.review.model.ReviewErrorCode
+import com.mikepenz.aboutlibraries.Libs
+import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
+import com.mikepenz.aboutlibraries.util.withJson
 import com.mikepenz.markdown.m3.Markdown
 import com.wxn.base.ext.goShop
 import com.wxn.base.ext.openUrl
@@ -77,6 +81,7 @@ import com.wxn.reader.navigation.LocalNavController
 import com.wxn.reader.presentation.settings.SetListItem
 import com.wxn.reader.presentation.settings.viewmodels.AboutViewModel
 import com.wxn.reader.presentation.settings.viewmodels.ThemeViewModel
+import com.wxn.reader.presentation.sharedComponents.AppTopAppBar
 import com.wxn.reader.util.ApkUpdateDownloader
 import com.wxn.reader.util.getAppVersion
 import com.wxn.reader.util.customMarkdownTypography
@@ -117,10 +122,12 @@ fun AboutAppScreen(
     val privacyPolicy = remember { readPrivacyPolicy(context) }
 
     var showPrivacyPolicyModal by remember { mutableStateOf(false) }
+    var showLibrariesModal by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            AppTopAppBar(
+                title = { Text(text = stringResource(R.string.about)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
@@ -129,7 +136,6 @@ fun AboutAppScreen(
                         )
                     }
                 },
-                title = { Text(text = stringResource(R.string.about)) },
             )
         },
     ) { innerPadding ->
@@ -226,13 +232,22 @@ fun AboutAppScreen(
                     showPrivacyPolicyModal = true
                 }
 
+                SetListItem(
+                    isDarkTheme = isDarkTheme,
+                    text = stringResource(R.string.about_open_source_licenses),
+                    icon = Icons.Outlined.Copyright
+                ) {
+                    showLibrariesModal = true
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
                 LinkIconsRow(
                     isDarkTheme = isDarkTheme,
                     onOpenUrl = { context.openUrl(it) }
                 )
+                Spacer(modifier = Modifier.height(24.dp))
+                CopyrightFooter()
             }
-            CopyrightFooter()
         }
     }
 
@@ -286,6 +301,55 @@ fun AboutAppScreen(
                 HorizontalDivider()
                 TextButton(
                     onClick = { showPrivacyPolicyModal = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                ) {
+                    Text(text = stringResource(R.string.close))
+                }
+            }
+        }
+    }
+
+    if (showLibrariesModal) {
+        ModalBottomSheet(
+            shape = BottomSheetDefaults.HiddenShape,
+            dragHandle = null,
+            onDismissRequest = { showLibrariesModal = false },
+            sheetState = rememberModalBottomSheetState(
+                skipPartiallyExpanded = true,
+                confirmValueChange = { it != SheetValue.PartiallyExpanded }
+            ),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.about_open_source_licenses),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    // 显式 R.raw.aboutlibraries 引用：release shrinkResources 只保留有
+                    // R 常量引用的资源，默认加载器按字符串名查找会被裁剪导致 release 崩溃；
+                    // 资源若缺失，此引用在编译期即报错（而非运行时崩溃）。
+                    LibrariesContainer(
+                        modifier = Modifier.fillMaxSize(),
+                        librariesBlock = { context ->
+                            Libs.Builder().withJson(context, R.raw.aboutlibraries).build()
+                        },
+                    )
+                }
+                HorizontalDivider()
+                TextButton(
+                    onClick = { showLibrariesModal = false },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp)

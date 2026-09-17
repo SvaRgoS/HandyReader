@@ -69,7 +69,7 @@ class TextParserImpl @Inject constructor(
                     epubTextParser.parseChapterInfo(bookId, cachedFile)
                 }
 
-                in listOf("mobi", "azw3") -> {
+                in MOBI_FAMILY_EXTENSIONS -> {
                     mobiTextParser.parseChapterInfo(bookId, cachedFile)
                 }
 
@@ -118,7 +118,7 @@ class TextParserImpl @Inject constructor(
                     epubTextParser.parsedChapterData(bookId, cachedFile, chapter)
                 }
 
-                in listOf("mobi", "azw3") -> {
+                in MOBI_FAMILY_EXTENSIONS -> {
                     mobiTextParser.parsedChapterData(bookId, cachedFile, chapter)
                 }
 
@@ -168,7 +168,7 @@ class TextParserImpl @Inject constructor(
                     epubTextParser.getWordCount(bookId, cachedFile)
                 }
 
-                in listOf("mobi", "azw3") -> {
+                in MOBI_FAMILY_EXTENSIONS -> {
                     mobiTextParser.getWordCount(bookId, cachedFile)
                 }
 
@@ -218,7 +218,7 @@ class TextParserImpl @Inject constructor(
                     epubTextParser.close(bookId, cachedFile)
                 }
 
-                in listOf("mobi", "azw3") -> {
+                in MOBI_FAMILY_EXTENSIONS -> {
                     mobiTextParser.close(bookId, cachedFile)
                 }
 

@@ -210,6 +210,7 @@
     <string name="cd_github_project">Projet GitHub</string>
     <string name="about_copyright">© 2026 WhiteBear Studio</string>
     <string name="about_open_source_license">Projet open source, licence GPL-3.0</string>
+    <string name="about_open_source_licenses">Licences open source</string>
     <string name="libraries">Bibliothèques</string>
     <string name="feature_request">Demande de fonctionnalité / Rapport de bug</string>
     <string name="selected" tools:override="true">%1$s sélectionné</string>

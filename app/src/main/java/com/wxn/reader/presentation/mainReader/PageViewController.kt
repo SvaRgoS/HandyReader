@@ -83,6 +83,7 @@ class PageViewController @OptIn(UnstableApi::class)
 ) : TTSController(context, ttsStateHolder, ttsServiceController), PageViewDataProvider,
     PageViewCallback, SelectTextCallback {
 
+    @Volatile
     override var book: Book? = null
     var userAnnotations: ArrayList<BookAnnotation>? = null
     var userNotes: ArrayList<Note>? = null
@@ -161,6 +162,7 @@ class PageViewController @OptIn(UnstableApi::class)
     /***
      * 章节数
      */
+    @Volatile
     override var chapterSize: Int = 0
 
     @Volatile
@@ -216,6 +218,7 @@ class PageViewController @OptIn(UnstableApi::class)
     /***
      * 初始章节加载成功/失败回调
      */
+    @Volatile
     private var onInitChapterLoadListener: ((Boolean) -> Unit)? = null
 
     @Volatile
@@ -535,11 +538,13 @@ class PageViewController @OptIn(UnstableApi::class)
             return
         }
 
-        // 版本锁机制：先取消旧任务，再原子递增版本号，保证线程安全
-        loadContentJob?.cancel()  // 先取消，避免与新任务冲突
+        // ★ 顺序修正（plan-reader-initial-load-stuck-fix v2.1 R1）：先原子递增版本号，再取消旧任务。
+        // 原顺序下被取消的旧任务在 finally 中读到的仍是旧版本号，会误判"我仍是最新版本"，
+        // 误触发下方 init 终态检测，在新批次即将执行时抢先 invoke(false) → 错误的 Error 界面。
+        val currentVersion = contentLoadVersion.incrementAndGet()
+        loadContentJob?.cancel()
         loadContentJob = null
 
-        val currentVersion = contentLoadVersion.incrementAndGet()  // 原子递增，线程安全
         Logger.d("PageViewController::loadContent cancelled previous job, version=$currentVersion")
 
         isBatchLoading = true
@@ -571,6 +576,17 @@ class PageViewController @OptIn(UnstableApi::class)
             } finally {
                 if (currentVersion == contentLoadVersion.get()) {
                     isBatchLoading = false
+                    // ★ 初始加载终态单点检测（v2.1 改动1）：成功路径已在 loadChapter 消费监听器并
+                    // 置空；此处监听器仍非空 = 本批次未成功（含 chapterSize=0 越界静默、加载异常、
+                    // 章节空）→ 以 curTextChapter 是否就绪落终态，消除永久 Loading。
+                    // 被更新版本 / resetBook（版本置 0）/ clear()（置 0 且置空监听器）接管时版本必
+                    // 不匹配，自然跳过，无双触发。
+                    if (isInitFinish && onInitChapterLoadListener != null) {
+                        val listener = onInitChapterLoadListener
+                        onInitChapterLoadListener = null
+                        Logger.e("PageViewController::loadContent: init chapter load did not succeed, curTextChapterReady=${curTextChapter != null}")
+                        listener?.invoke(curTextChapter != null)
+                    }
                 }
             }
             callBack?.upContent()
@@ -875,6 +891,13 @@ class PageViewController @OptIn(UnstableApi::class)
     ): TextChapter? {
         return withContext(loadChapterDispatcher) {
 //        Logger.i("PageViewController::loadContent:index=$index,upContent=$upContent,resetPageOffset=$resetPageOffset,bookid=${book?.id},bookname=${book?.title}")
+            // ★ 防呆（v2.1 改动4）：初始化窗口内（resetBook 尚在读 DB，isInitFinish=false）的
+            // 任何直接调用（updatePageViews/连续滚动预加载/TTS）静默跳过，不触发导航错误回调。
+            // 运行期调用方全部处于 isInitFinish=true（v2.1 R4 已逐一核实），守卫仅改变 init 窗口行为。
+            if (!isInitFinish) {
+                Logger.w("PageViewController::loadChapter skipped - not initialized, index=$chapterIndex")
+                return@withContext null
+            }
             if (chapterIndex !in 0 until chapterSize) {
                 if (chapterIndex == durChapterIndex) {
                     navigationLoadingListener?.onNavigationLoadingError(chapterIndex)

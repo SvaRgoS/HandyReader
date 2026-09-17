@@ -42,16 +42,7 @@ class DownloadOpdsBookUseCase @Inject constructor(
         val urlFileName = link.href.substringAfterLast("/").substringBefore("?")
             .takeIf { it.contains(".") }
 
-        val fileName = if (urlFileName != null) {
-            val knownExtensions = setOf(
-                "epub", "pdf", "mobi", "azw3", "fb2", "txt", "html", "htm", "md", "mp3", "m4a", "m4b", "aac"
-            )
-            val urlExtension = urlFileName.substringAfterLast(".").lowercase()
-            if (urlExtension in knownExtensions) urlFileName
-            else urlFileName + extensionFromMimeType(link.type)
-        } else {
-            sanitizeFileName(entry.title) + extensionFromMimeType(link.type)
-        }
+        val fileName = buildDownloadFileName(urlFileName, entry.title, link.type)
 
         val subDir = "$catalogId"
         val fileId = "opds_${catalogId}_${entry.id.hashCode().toUInt()}_${link.href.hashCode().toUInt()}"
@@ -129,12 +120,16 @@ class DownloadOpdsBookUseCase @Inject constructor(
             val ext = tempPath.substringAfterLast(".").lowercase()
             val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
                 ?: "application/octet-stream"
-            val fileNameWithoutExt = tempFile.nameWithoutExtension
 
             val safDir = DocumentFile.fromTreeUri(context, Uri.parse(safTreeUri))
                 ?: return Result.failure(Exception("Invalid SAF tree URI: $safTreeUri"))
 
-            val safFile = safDir.createFile(mimeType, fileNameWithoutExt)
+            // displayName 传完整文件名：AOSP MIME 表不含 mobi/prc/fb2/md 等条目 → mimeType 回退
+            // octet-stream（= provider 的 MIMETYPE_UNKNOWN 哨兵）→ provider 保持原名不动；扩展名
+            // 在系统表内（epub/pdf/txt…）时 MIME 匹配同样保留原名。两分支最终名均确定等于完整
+            // 原文件名，不再依赖 provider 补扩展名（旧实现的 nameWithoutExtension 剥扩展名 +
+            // 等 provider 补回，对表外格式会产出无扩展名文件）。
+            val safFile = safDir.createFile(mimeType, tempFile.name)
                 ?: return Result.failure(Exception("Failed to create file in SAF directory"))
 
             context.contentResolver.openOutputStream(safFile.uri)?.use { out ->
@@ -157,27 +152,59 @@ class DownloadOpdsBookUseCase @Inject constructor(
         }
     }
 
-    private fun sanitizeFileName(title: String): String {
-        return title.replace(Regex("[^a-zA-Z0-9._\\-\\s]"), "")
-            .trim()
-            .take(100)
-            .ifBlank { "book" }
+    companion object {
+        /** 可直接信任的 URL 文件扩展名；prc 为 MOBI 家族一等公民（解析端 TextParser/FileParser 全链路支持） */
+        internal val KNOWN_URL_EXTENSIONS = setOf(
+            "epub", "pdf", "mobi", "azw3", "prc", "fb2", "txt", "html", "htm", "md",
+            "mp3", "m4a", "m4b", "aac"
+        )
+
+        /**
+         * 决定下载落盘文件名（纯函数，无 Android 依赖）：
+         * - URL 文件名带已知扩展名 → 原样保留（含 prc，可溯源服务端）
+         * - 带未知扩展名 → 剥掉未知扩展名，替换为 MIME 规范扩展名（防双后缀守卫）
+         * - 无文件名/点文件名 → 条目标题 sanitize + MIME 规范扩展名（追加）
+         */
+        internal fun buildDownloadFileName(urlFileName: String?, entryTitle: String, mimeType: String?): String {
+            val mimeExt = extensionFromMimeType(mimeType)
+            if (urlFileName == null) {
+                return sanitizeFileName(entryTitle) + mimeExt
+            }
+            val urlExtension = urlFileName.substringAfterLast(".").lowercase()
+            if (urlExtension in KNOWN_URL_EXTENSIONS) {
+                return urlFileName
+            }
+            val base = urlFileName.substringBeforeLast(".")
+            if (base.isEmpty()) {
+                // 病态名（如 ".hidden"）：base 为空，退回追加，避免产出 ".mobi" 这类点文件
+                return urlFileName + mimeExt
+            }
+            return if (base.endsWith(mimeExt)) base else base + mimeExt
+        }
+
+        private fun sanitizeFileName(title: String): String {
+            return title.replace(Regex("[^a-zA-Z0-9._\\-\\s]"), "")
+                .trim()
+                .take(100)
+                .ifBlank { "book" }
+        }
+
+        internal fun extensionFromMimeType(mimeType: String?): String {
+            return when (mimeType?.lowercase()) {
+                "application/epub+zip", "application/epub" -> ".epub"
+                "application/pdf" -> ".pdf"
+                "application/x-mobipocket-ebook" -> ".mobi"
+                "application/x-mobipocket-ebook-azw3", "application/vnd.amazon.mobi8-ebook" -> ".azw3"
+                "application/x-fictionbook+xml" -> ".fb2"
+                "text/plain" -> ".txt"
+                "text/html" -> ".html"
+                "text/markdown" -> ".md"
+                "audio/mpeg" -> ".mp3"
+                "audio/mp4" -> ".m4b"
+                else -> ".epub"
+            }
+        }
+        // MIME type list should be kept in sync with OpdsLink.DOWNLOADABLE_MIME_TYPES
     }
 
-    private fun extensionFromMimeType(mimeType: String?): String {
-        return when (mimeType?.lowercase()) {
-            "application/epub+zip", "application/epub" -> ".epub"
-            "application/pdf" -> ".pdf"
-            "application/x-mobipocket-ebook" -> ".mobi"
-            "application/x-mobipocket-ebook-azw3", "application/vnd.amazon.mobi8-ebook" -> ".azw3"
-            "application/x-fictionbook+xml" -> ".fb2"
-            "text/plain" -> ".txt"
-            "text/html" -> ".html"
-            "text/markdown" -> ".md"
-            "audio/mpeg" -> ".mp3"
-            "audio/mp4" -> ".m4b"
-            else -> ".epub"
-        }
-    }
-    // MIME type list should be kept in sync with OpdsLink.DOWNLOADABLE_MIME_TYPES
 }

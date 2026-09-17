@@ -209,6 +209,7 @@
     <string name="cd_github_project">GitHub 專案</string>
     <string name="about_copyright">© 2026 WhiteBear Studio</string>
     <string name="about_open_source_license">開源專案，GPL-3.0 授權</string>
+    <string name="about_open_source_licenses">開源授權</string>
     <string name="libraries">程式庫</string>
     <string name="feature_request">功能請求 / 錯誤回報</string>
     <string name="selected" tools:override="true">已選取 %1$s</string>

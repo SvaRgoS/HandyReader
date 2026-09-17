@@ -44,7 +44,7 @@ object FileValidator {
         return when (extension.lowercase()) {
             "epub" -> validateEpub(file)
             "pdf" -> validatePdf(file)
-            "mobi", "azw3" -> validateMobi(file)
+            "mobi", "azw3", "prc" -> validateMobi(file)
             "mp3" -> validateMp3(file)
             "m4a", "m4b" -> validateMp4(file)
             "aac" -> validateAac(file)

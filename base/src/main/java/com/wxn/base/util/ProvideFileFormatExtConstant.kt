@@ -21,6 +21,7 @@ fun supportedExtensions() = listOf(
     "md",
     "mobi",
     "azw3",
+    "prc",
     "mp3",
     "m4a",
     "m4b",

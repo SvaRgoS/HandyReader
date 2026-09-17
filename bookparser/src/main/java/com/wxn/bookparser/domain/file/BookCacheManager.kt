@@ -17,7 +17,7 @@ class BookCacheManager private constructor(val cacheDir: File) {
         private const val IO_BUFFER_SIZE = 64 * 1024
         private const val MIN_FREE_SPACE = 10L * 1024 * 1024
         private val BOOK_EXTENSIONS = setOf(
-            "epub", "mobi", "azw", "azw3", "fb2", "txt", "pdf",
+            "epub", "mobi", "azw", "azw3", "prc", "fb2", "txt", "pdf",
             "md", "html", "htm", "mp3", "m4a", "m4b", "aac"
         )
 

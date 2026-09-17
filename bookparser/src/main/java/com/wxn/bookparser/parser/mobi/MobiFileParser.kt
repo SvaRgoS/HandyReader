@@ -167,6 +167,16 @@ AZW本质上是带有Amazon特定元数据的MOBI文件：<br/>
  */
 class MobiFileParser @Inject constructor(val context: Context) : FileParser {
 
+    companion object {
+        /**
+         * DB fileType 列归一化：prc 与 mobi 同为 MOBI 家族，落库统一为 "mobi"，
+         * 保证 BookEntity.FileType.storageValues() 的 IN 过滤命中（MOBI 只认 "mobi"）。
+         * 仅 prc 做映射，其余原样返回（含大小写），避免改变既有取值。
+         */
+        fun normalizeStoredFileType(format: String): String =
+            if (format.equals("prc", ignoreCase = true)) "mobi" else format
+    }
+
     override suspend fun parse(file: DocumentFile): Book? {
         val rawFile = file.rawFile(context)
         val title = file.baseName
@@ -214,7 +224,7 @@ class MobiFileParser @Inject constructor(val context: Context) : FileParser {
             lastOpened = null,
             category = metaInfo.subject.orEmpty(),
             coverImage = metaInfo.coverPath.orEmpty(),
-            fileType = format
+            fileType = normalizeStoredFileType(format)
         )
     }
 }

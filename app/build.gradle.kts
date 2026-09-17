@@ -331,6 +331,13 @@ afterEvaluate {
     }
 }
 
+// 开源许可页补录 native 组件：源码 CMake 编译与预编译 so 不经 Maven 依赖图，
+// 插件收集不到，必须经 configPath 手工登记（C/C++ 库清单与依据见
+// docs/plans/2026-09-17-plan-native-libs-license-registration.md）。
+aboutLibraries {
+    configPath = file("config").absolutePath
+}
+
 dependencies {
     implementation(fileTree("libs"))
 
@@ -394,7 +401,7 @@ dependencies {
     //这个库用于在 Android 应用中自动收集和展示项目的依赖信息，
     // 包括依赖项的名称、版本、许可证等信息。它提供了易于集成的 UI 组件，使得开发者可以轻松地在应用中展示这些信息 。
     implementation(libs.aboutlibraries.core)
-    implementation(libs.aboutlibraries.compose)
+    implementation(libs.aboutlibraries.compose.m3)
 
     implementation(libs.kotlinx.serialization.json)
 
