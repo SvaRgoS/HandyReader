@@ -41,4 +41,14 @@ interface OpdsCatalogDao {
 
     @Query("SELECT COUNT(*) FROM opds_catalogs WHERE predefinedId = :predefinedId")
     suspend fun catalogExistsByPredefinedId(predefinedId: String): Int
+
+    /**
+     * 清理不再出现在预置名单中的推荐源（keepIds 为预置名单全量 id）。
+     * 自定义目录（isPredefined = 0）与 predefinedId 为 NULL 的行不受影响。
+     */
+    @Query(
+        "DELETE FROM opds_catalogs WHERE isPredefined = 1 " +
+            "AND predefinedId IS NOT NULL AND predefinedId NOT IN (:keepIds)"
+    )
+    suspend fun deleteStalePredefinedCatalogs(keepIds: List<String>)
 }

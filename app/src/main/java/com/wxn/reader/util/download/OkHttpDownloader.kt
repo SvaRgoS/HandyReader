@@ -1,6 +1,7 @@
 package com.wxn.reader.util.download
 
 import com.wxn.base.util.Logger
+import com.wxn.reader.data.remote.opds.OpdsRequestCredential
 import com.wxn.reader.util.download.DownloaderHelper.checkAvailableSpace
 import com.wxn.reader.util.download.DownloaderHelper.withRetry
 import kotlinx.coroutines.CancellationException
@@ -29,6 +30,7 @@ class OkHttpDownloader @Inject constructor(
         url: String,
         targetFile: File,
         headers: Map<String, String>?,
+        credential: OpdsRequestCredential?,
         onProgress: (Float) -> Unit
     ): String {
         val tempFile = File(targetFile.parent, "${targetFile.name}.tmp")
@@ -45,7 +47,7 @@ class OkHttpDownloader @Inject constructor(
 
         try {
             val downloadedBytes = withRetry(times = RETRY_COUNT, initialDelay = RETRY_DELAY) {
-                downloadWithProgress(url, tempFile, headers, onProgress)
+                downloadWithProgress(url, tempFile, headers, credential, onProgress)
             }
 
             if (!tempFile.renameTo(targetFile)) {
@@ -94,10 +96,12 @@ class OkHttpDownloader @Inject constructor(
         url: String,
         tempFile: File,
         headers: Map<String, String>?,
+        credential: OpdsRequestCredential?,
         onProgress: (Float) -> Unit
     ): Long {
         val requestBuilder = Request.Builder().url(url)
         headers?.forEach { (key, value) -> requestBuilder.header(key, value) }
+        credential?.let { requestBuilder.tag(OpdsRequestCredential::class.java, it) }
         val request = requestBuilder.build()
         val response = okHttpClient.newCall(request).execute()
 

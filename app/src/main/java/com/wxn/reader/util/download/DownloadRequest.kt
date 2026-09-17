@@ -9,5 +9,5 @@ data class DownloadRequest(
     val fileType: DownloadFileType,
     val fileName: String? = null,
     val extraData: Any? = null,
-    val authHeader: String? = null,
+    val opdsCatalogId: Long? = null,
 )

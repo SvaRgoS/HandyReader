@@ -2,6 +2,7 @@ package com.wxn.reader.util.download
 
 
 import com.wxn.base.util.Logger
+import com.wxn.reader.data.remote.opds.OpdsRequestCredential
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -19,12 +20,13 @@ data class ServerCapabilities(
  * 服务器资源探测工具, 检测服务器是否支持断点续传
  */
 class ServerCapabilityDetector(private val okHttpClient: OkHttpClient) {
-    suspend fun detectCapabilities(url: String): ServerCapabilities {
+    suspend fun detectCapabilities(url: String, credential: OpdsRequestCredential? = null): ServerCapabilities {
         return try {
-            val request = Request.Builder()
+            val requestBuilder = Request.Builder()
                 .url(url)
                 .head()
-                .build()
+            credential?.let { requestBuilder.tag(OpdsRequestCredential::class.java, it) }
+            val request = requestBuilder.build()
 
             val response = okHttpClient.newCall(request).execute()
 

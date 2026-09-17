@@ -32,8 +32,8 @@ object OpdsCatalogConfigParser {
         return json.decodeFromString<OpdsPredefinedCatalogs>(jsonString)
     }
     val FALLBACK_CATALOGS = OpdsPredefinedCatalogs(
-        version = 5,
-        updated = "2026-05-29 12:22:00",
+        version = 6,
+        updated = "2026-09-15 12:00:00",
         catalogs = listOf(
             PredefinedCatalogItem(
                 id = "gutenberg",
@@ -79,15 +79,6 @@ object OpdsCatalogConfigParser {
                 category = "public",
                 supportsSearch = true,
                 language = "de"
-            ),
-            PredefinedCatalogItem(
-                id = "Wenyuange",
-                name = "WenYuanGe",
-                url = "https://wenyuange.org/opds/",
-                description = "WenYuanGe is built by Calibre，thanks for the open source power.",
-                category = "public",
-                supportsSearch = false,
-                language = "zh"
             )
         )
     )

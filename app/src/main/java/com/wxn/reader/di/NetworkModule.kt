@@ -15,6 +15,7 @@ import com.wxn.reader.data.remote.api.DictionaryApi
 import com.wxn.reader.data.remote.api.DictionaryApiImpl
 import com.wxn.reader.data.remote.auth.AuthInterceptor
 import com.wxn.reader.data.remote.auth.TokenManager
+import com.wxn.reader.data.remote.opds.OpdsAuthAuthenticator
 import com.wxn.reader.data.source.local.dao.DownloadHistoryDao
 import com.wxn.reader.util.download.FileDownloadManager
 import com.wxn.reader.util.download.IDownloader
@@ -180,6 +181,7 @@ object NetworkModule {
     fun provideDownloadOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(BrowserHeadersInterceptor())
+            .authenticator(OpdsAuthAuthenticator())      // OPDS 401 挑战协商（tag 门控，无 tag 请求零影响）
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

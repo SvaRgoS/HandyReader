@@ -8,12 +8,15 @@ import androidx.work.workDataOf
 import com.wxn.base.util.Coroutines
 import com.wxn.base.util.Logger
 import com.wxn.reader.data.dto.DownloadHistoryEntity
+import com.wxn.reader.data.remote.opds.OpdsRequestCredential
+import com.wxn.reader.data.source.local.OpdsCredentialStore
 import com.wxn.reader.data.source.local.dao.DownloadHistoryDao
 import com.wxn.reader.domain.model.DownloadStatus
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import java.io.File
 import javax.inject.Named
@@ -28,7 +31,8 @@ class DownloadWorker @AssistedInject constructor(
     @Named("DownloadOkHttpClient") private val okClient: OkHttpClient,
     private val downloadHistoryDao: DownloadHistoryDao,
     private val okHttpDownloader: IDownloader,
-    private val okHttpDownloaderWithResume: IDownloaderWithResume
+    private val okHttpDownloaderWithResume: IDownloaderWithResume,
+    private val credentialStore: OpdsCredentialStore
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {
@@ -41,7 +45,7 @@ class DownloadWorker @AssistedInject constructor(
         const val KEY_PROGRESS = "progress"
         const val KEY_LOCAL_PATH = "local_path"
         const val KEY_ERROR = "error"
-        const val KEY_AUTH_HEADER = "auth_header"
+        const val KEY_OPDS_CATALOG_ID = "opds_catalog_id"
     }
 
     private val scope = Coroutines.scope()
@@ -54,7 +58,12 @@ class DownloadWorker @AssistedInject constructor(
         val fileType = inputData.getString(KEY_FILE_TYPE) ?: "BG_IMAGE"
         val fileName = inputData.getString(KEY_FILE_NAME)
         val startedAt = inputData.getLong(KEY_STARTED_AT, System.currentTimeMillis())
-        val authHeader = inputData.getString(KEY_AUTH_HEADER)
+        // OPDS 下载任务运行时从加密存储现读凭据（不落库，重试/重启自动拿最新值）；host 绑定签发主机
+        val opdsCatalogId = inputData.getLong(KEY_OPDS_CATALOG_ID, -1L)
+        val credential = if (opdsCatalogId >= 0) {
+            credentialStore.getCredentials(opdsCatalogId)
+                ?.let { (u, p) -> OpdsRequestCredential(u, p, host = url.toHttpUrl().host) }
+        } else null
         return try {
             // 记录下载开始
             recordDownloadHistory(
@@ -89,7 +98,7 @@ class DownloadWorker @AssistedInject constructor(
             }
             // 决定使用哪种下载策略
             val detector = ServerCapabilityDetector(okClient)
-            val capabilities = detector.detectCapabilities(url)
+            val capabilities = detector.detectCapabilities(url, credential = credential)
             val totalSize = capabilities.contentLength
 
             val localPath = if (totalSize != null && totalSize > LARGE_FILE_THRESHOLD) {
@@ -98,7 +107,7 @@ class DownloadWorker @AssistedInject constructor(
                     targetFile,
                     null,
                     capabilities,
-                    headers = if (authHeader != null) mapOf("Authorization" to authHeader) else null
+                    credential = credential
                 ) { progress ->
                     Logger.d("DownloadWorker::downloadWithResume:progress=$progress")
                     scope.launch {
@@ -114,7 +123,8 @@ class DownloadWorker @AssistedInject constructor(
                 okHttpDownloader.downloadToFile(
                     url,
                     targetFile,
-                    headers = if (authHeader != null) mapOf("Authorization" to authHeader) else null
+                    headers = null,
+                    credential = credential
                 ) { progress ->
                     Logger.d("DownloadWorker::downloadToFile:progress=$progress, fileId=$fileId")
                     scope.launch {

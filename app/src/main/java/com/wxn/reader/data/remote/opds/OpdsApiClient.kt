@@ -1,7 +1,6 @@
 package com.wxn.reader.data.remote.opds
 
 import android.content.Context
-import android.util.Base64
 import com.wxn.base.util.Logger
 import com.wxn.reader.data.model.opds.OpdsFeed
 import com.wxn.reader.data.source.local.OpdsCredentialStore
@@ -12,6 +11,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -76,11 +76,11 @@ class OpdsApiClient @Inject constructor(
 
             val credentials = credentialStore.getCredentials(catalogId)
             if (credentials != null) {
-                val auth = Base64.encodeToString(
-                    "${credentials.first}:${credentials.second}".toByteArray(),
-                    Base64.NO_WRAP
+                // 凭据经 tag 随请求传递，401 时由 OpdsAuthAuthenticator 协商（host 绑定签发主机）
+                requestBuilder.tag(
+                    OpdsRequestCredential::class.java,
+                    OpdsRequestCredential(credentials.first, credentials.second, host = url.toHttpUrl().host)
                 )
-                requestBuilder.header("Authorization", "Basic $auth")
             }
 
             val call = okHttpClient.newCall(requestBuilder.build())
@@ -94,16 +94,17 @@ class OpdsApiClient @Inject constructor(
                 }
 
                 response.code == HttpURLConnection.HTTP_FORBIDDEN -> {
-                    val msg = "HTTP 403: Forbidden"
+                    // OpdsNetworkException 自带 "HTTP <code>:" 前缀，此处只传描述避免前缀重复
+                    val msg = "Forbidden"
                     response.close()
-                    Logger.w("OpdsApiClient::fetchFeed: $msg for url=$url")
+                    Logger.w("OpdsApiClient::fetchFeed: HTTP 403 for url=$url")
                     return@withContext Result.failure(OpdsNetworkException(403, msg))
                 }
 
                 !response.isSuccessful -> {
-                    val msg = "HTTP ${response.code}: ${response.message}"
+                    val msg = response.message.ifBlank { "Request failed" }
                     response.close()
-                    Logger.w("OpdsApiClient::fetchFeed: $msg for url=$url")
+                    Logger.w("OpdsApiClient::fetchFeed: HTTP ${response.code} for url=$url")
                     return@withContext Result.failure(OpdsNetworkException(response.code, msg))
                 }
 
@@ -179,11 +180,11 @@ class OpdsApiClient @Inject constructor(
 
             val credentials = credentialStore.getCredentials(catalogId)
             if (credentials != null) {
-                val auth = Base64.encodeToString(
-                    "${credentials.first}:${credentials.second}".toByteArray(),
-                    Base64.NO_WRAP
+                // 凭据经 tag 随请求传递，401 时由 OpdsAuthAuthenticator 协商（host 绑定签发主机）
+                requestBuilder.tag(
+                    OpdsRequestCredential::class.java,
+                    OpdsRequestCredential(credentials.first, credentials.second, host = searchDocUrl.toHttpUrl().host)
                 )
-                requestBuilder.header("Authorization", "Basic $auth")
             }
 
             val call = okHttpClient.newCall(requestBuilder.build())
@@ -267,13 +268,5 @@ class OpdsApiClient @Inject constructor(
     ): Result<OpdsFeed> {
         val url = OpdsFeedParser.buildSearchUrl(searchUrl, query, startIndex, count)
         return fetchFeed(url, catalogId, useCache = false)
-    }
-
-    fun buildAuthHeader(catalogId: Long): String? {
-        val credentials = credentialStore.getCredentials(catalogId) ?: return null
-        return "Basic " + Base64.encodeToString(
-            "${credentials.first}:${credentials.second}".toByteArray(),
-            Base64.NO_WRAP
-        )
     }
 }

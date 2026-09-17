@@ -2,6 +2,7 @@ package com.wxn.reader.util.download
 
 import com.wxn.base.util.Logger
 import com.wxn.reader.domain.model.DownloadMetadata
+import com.wxn.reader.data.remote.opds.OpdsRequestCredential
 import com.wxn.reader.util.download.DownloaderHelper.checkAvailableSpace
 import com.wxn.reader.util.download.DownloaderHelper.parseTotalSizeFromContentRange
 import com.wxn.reader.util.download.DownloaderHelper.withRetry
@@ -27,6 +28,7 @@ class OkHttpDownloaderWithResume  @Inject constructor(
         metadata: DownloadMetadata?,
         capabilities: ServerCapabilities,
         headers: Map<String, String>?,
+        credential: OpdsRequestCredential?,
         onProgress: (Float) -> Unit
     ): String {
         Logger.i("OkHttpDownloaderWithResume:downloadWithResume:url=$url,targetFile=${targetFile.absolutePath},metadata=$metadata, capabilities=$capabilities")
@@ -60,6 +62,7 @@ class OkHttpDownloaderWithResume  @Inject constructor(
                 currentMetadata = currentMetadata,
                 capabilities = capabilities,
                 headers = headers,
+                credential = credential,
                 isResuming = isResuming,
                 progressInterval = progressInterval,
                 onProgress = onProgress
@@ -74,6 +77,7 @@ class OkHttpDownloaderWithResume  @Inject constructor(
         currentMetadata: DownloadMetadata?,
         capabilities: ServerCapabilities,
         headers: Map<String, String>?,
+        credential: OpdsRequestCredential?,
         isResuming: Boolean,
         progressInterval: Float,
         onProgress: (Float) -> Unit
@@ -88,6 +92,7 @@ class OkHttpDownloaderWithResume  @Inject constructor(
         Logger.d("OkHttpDownloaderWithResume:downloadWithRangeSupport:startByte=$startByte")
         val requestBuilder = Request.Builder().url(url)
         headers?.forEach { (key, value) -> requestBuilder.header(key, value) }
+        credential?.let { requestBuilder.tag(OpdsRequestCredential::class.java, it) }
         if (startByte > 0 && capabilities.supportsRange) {
             requestBuilder.header("Range", "bytes=$startByte-")
         }

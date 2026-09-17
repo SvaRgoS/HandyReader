@@ -105,6 +105,11 @@ class OpdsRepositoryImpl @Inject constructor(
                     )
                 }
             }
+            // keepIds 必须是预置名单全量 id（不得用黑名单过滤后的子集），
+            // 否则黑名单语义会在未来实现变更（如改为 disable 而非 delete）时变成误删
+            if (catalogs.isNotEmpty()) {
+                opdsCatalogDao.deleteStalePredefinedCatalogs(catalogs.map { it.id })
+            }
         }
     }
 }

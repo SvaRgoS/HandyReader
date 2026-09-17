@@ -12,7 +12,6 @@ import com.wxn.base.util.PathUtil
 import com.wxn.bookparser.FileParser
 import com.wxn.reader.data.model.opds.OpdsEntry
 import com.wxn.reader.data.model.opds.OpdsLink
-import com.wxn.reader.data.remote.opds.OpdsApiClient
 import com.wxn.reader.domain.use_case.books.InsertBookUseCase
 import com.wxn.reader.util.download.FileDownloadManager
 import com.wxn.reader.util.download.FileValidationException
@@ -25,8 +24,7 @@ class DownloadOpdsBookUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
     private val fileDownloadManager: FileDownloadManager,
     private val fileParser: FileParser,
-    private val insertBookUseCase: InsertBookUseCase,
-    private val opdsApiClient: OpdsApiClient
+    private val insertBookUseCase: InsertBookUseCase
 ) {
     data class DownloadResult(
         val fileId: String,
@@ -37,8 +35,7 @@ class DownloadOpdsBookUseCase @Inject constructor(
     private data class DownloadFileInfo(
         val fileId: String,
         val targetPath: String,
-        val fileName: String,
-        val authHeader: String?
+        val fileName: String
     )
 
     private fun getDownloadFileInfo(entry: OpdsEntry, link: OpdsLink, catalogId: Long): DownloadFileInfo {
@@ -65,9 +62,7 @@ class DownloadOpdsBookUseCase @Inject constructor(
             fileId
         )
 
-        val authHeader = opdsApiClient.buildAuthHeader(catalogId)
-
-        return DownloadFileInfo(fileId, targetPath, fileName, authHeader)
+        return DownloadFileInfo(fileId, targetPath, fileName)
     }
 
     fun enqueueDownload(entry: OpdsEntry, link: OpdsLink, catalogId: Long): DownloadResult {
@@ -84,7 +79,7 @@ class DownloadOpdsBookUseCase @Inject constructor(
             url = link.href,
             fileType = DownloadFileType.OPDS_BOOK,
             fileName = "$catalogId/${info.fileName}",
-            authHeader = info.authHeader
+            opdsCatalogId = catalogId
         )
 
         return DownloadResult(info.fileId, info.targetPath, entry)

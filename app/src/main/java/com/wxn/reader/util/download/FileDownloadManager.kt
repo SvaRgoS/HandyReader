@@ -4,11 +4,11 @@ import android.content.Context
 import androidx.lifecycle.asFlow
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import com.wxn.base.bean.DownloadFileType
 import com.wxn.base.util.Coroutines
 import com.wxn.base.util.PathUtil
@@ -87,11 +87,11 @@ class FileDownloadManager @Inject constructor(
         fileType: DownloadFileType = DownloadFileType.BG_IMAGE,
         fileName: String? = null,
         extraData: Any? = null,
-        authHeader: String? = null,
+        opdsCatalogId: Long? = null,
     ): String {
         BaseLogger.d("FileDownloadManager::enqueueDownload::fileId=$fileId, url=$url, fileType=$fileType,fileName=$fileName")
 
-        val request = DownloadRequest(fileId, url, fileType, fileName, extraData, authHeader)
+        val request = DownloadRequest(fileId, url, fileType, fileName, extraData, opdsCatalogId)
         synchronized(this) {
             // Check if already in pending downloads
             if (isInQueue(fileId)) {
@@ -129,7 +129,7 @@ class FileDownloadManager @Inject constructor(
     }
 
     private fun startDownload(request: DownloadRequest): String {
-        return startDownload(request.fileId, request.url, request.fileType, request.fileName, request.extraData, request.authHeader)
+        return startDownload(request.fileId, request.url, request.fileType, request.fileName, request.extraData, request.opdsCatalogId)
     }
 
     private fun startQueueObserver() {
@@ -165,7 +165,7 @@ class FileDownloadManager @Inject constructor(
         fileType: DownloadFileType,
         fileName: String?,
         extraData: Any? = null,
-        authHeader: String? = null
+        opdsCatalogId: Long? = null
     ): String {
         val targetPath = getTargetPath(fileId, fileType, fileName)
         val startedAt = System.currentTimeMillis()
@@ -173,16 +173,16 @@ class FileDownloadManager @Inject constructor(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresStorageNotLow(true)
             .build()
-        //封装传递给WorkManager的下载数据
-        val inputData = workDataOf(
-            DownloadWorker.KEY_FILE_ID to fileId,
-            DownloadWorker.KEY_URL to url,
-            DownloadWorker.KEY_TARGET_PATH to targetPath,
-            DownloadWorker.KEY_FILE_TYPE to fileType.name,
-            DownloadWorker.KEY_FILE_NAME to fileName,
-            DownloadWorker.KEY_STARTED_AT to startedAt,
-            DownloadWorker.KEY_AUTH_HEADER to authHeader
-        )
+        //封装传递给WorkManager的下载数据（OPDS 目录 ID 单独传递，凭据由 Worker 运行时从加密存储现读，不落库）
+        val inputData = Data.Builder()
+            .putString(DownloadWorker.KEY_FILE_ID, fileId)
+            .putString(DownloadWorker.KEY_URL, url)
+            .putString(DownloadWorker.KEY_TARGET_PATH, targetPath)
+            .putString(DownloadWorker.KEY_FILE_TYPE, fileType.name)
+            .putString(DownloadWorker.KEY_FILE_NAME, fileName)
+            .putLong(DownloadWorker.KEY_STARTED_AT, startedAt)
+            .apply { opdsCatalogId?.let { putLong(DownloadWorker.KEY_OPDS_CATALOG_ID, it) } }
+            .build()
         //封装任务请求数据
         val workRequest = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setConstraints(constraints)
