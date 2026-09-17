@@ -1026,4 +1026,15 @@
     <string name="reader_info_bar_total_progress">Progresso total</string>
     <string name="reader_info_bar_page_and_total">Página · Progresso</string>
     <string name="reader_info_bar_book_name">Título do livro</string>
+    <!-- Verificação de atualização do app (página Sobre) -->
+    <string name="settings_check_update">Verificar atualizações</string>
+    <string name="update_checking">Verificando atualizações…</string>
+    <string name="update_up_to_date">Você já está na versão mais recente</string>
+    <string name="update_available_title">Nova versão disponível</string>
+    <string name="update_btn_play">Atualizar no Google Play</string>
+    <string name="update_btn_download">Baixar atualização</string>
+    <string name="update_error_network">Não foi possível verificar atualizações. Verifique sua conexão e tente novamente</string>
+    <string name="update_error_server">O serviço de atualização está temporariamente indisponível. Tente novamente mais tarde</string>
+    <string name="update_unsupported_abi">As atualizações pelo app não são compatíveis com a arquitetura deste dispositivo. Baixe a versão mais recente em nosso site</string>
+    <string name="update_download_started">Download iniciado. Toque na notificação quando terminar para instalar</string>
 </resources>

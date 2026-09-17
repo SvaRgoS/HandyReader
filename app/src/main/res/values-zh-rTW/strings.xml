@@ -1026,4 +1026,15 @@
     <string name="reader_info_bar_total_progress">總進度</string>
     <string name="reader_info_bar_page_and_total">頁碼 · 進度</string>
     <string name="reader_info_bar_book_name">書名</string>
+    <!-- 应用版本更新检测（About 页） -->
+    <string name="settings_check_update">檢查更新</string>
+    <string name="update_checking">正在檢查更新…</string>
+    <string name="update_up_to_date">已是最新版本</string>
+    <string name="update_available_title">新版本可用</string>
+    <string name="update_btn_play">前往 Google Play 更新</string>
+    <string name="update_btn_download">下載更新</string>
+    <string name="update_error_network">無法檢查更新，請檢查網路連線後重試</string>
+    <string name="update_error_server">更新服務暫時無法使用，請稍後再試</string>
+    <string name="update_unsupported_abi">目前裝置架構暫不支援應用程式內更新，請前往官網下載最新版本</string>
+    <string name="update_download_started">已開始下載，完成後輕觸通知即可安裝</string>
 </resources>

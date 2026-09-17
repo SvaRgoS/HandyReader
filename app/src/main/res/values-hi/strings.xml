@@ -1028,4 +1028,15 @@
     <string name="reader_info_bar_total_progress">कुल प्रगति</string>
     <string name="reader_info_bar_page_and_total">पृष्ठ · प्रगति</string>
     <string name="reader_info_bar_book_name">पुस्तक शीर्षक</string>
+    <!-- ऐप अपडेट जाँच (About पेज) -->
+    <string name="settings_check_update">अपडेट देखें</string>
+    <string name="update_checking">अपडेट की जाँच हो रही है…</string>
+    <string name="update_up_to_date">आप नवीनतम संस्करण पर हैं</string>
+    <string name="update_available_title">नया संस्करण उपलब्ध है</string>
+    <string name="update_btn_play">Google Play पर अपडेट करें</string>
+    <string name="update_btn_download">अपडेट डाउनलोड करें</string>
+    <string name="update_error_network">अपडेट नहीं देखे जा सके. अपना कनेक्शन जाँचें और फिर से प्रयास करें</string>
+    <string name="update_error_server">अपडेट सेवा अस्थायी रूप से उपलब्ध नहीं है. बाद में फिर से प्रयास करें</string>
+    <string name="update_unsupported_abi">इस डिवाइस आर्किटेक्चर पर ऐप के भीतर अपडेट समर्थित नहीं हैं. कृपया हमारी वेबसाइट से नवीनतम संस्करण डाउनलोड करें</string>
+    <string name="update_download_started">डाउनलोड शुरू हो गया. पूरा होने पर इंस्टॉल करने के लिए सूचना पर टैप करें</string>
 </resources>

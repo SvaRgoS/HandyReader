@@ -1032,4 +1032,15 @@
     <string name="reader_info_bar_total_progress">التقدم الكلي</string>
     <string name="reader_info_bar_page_and_total">صفحة · تقدم</string>
     <string name="reader_info_bar_book_name">عنوان الكتاب</string>
+    <!-- التحقق من تحديث التطبيق (شاشة "حول") -->
+    <string name="settings_check_update">التحقق من التحديثات</string>
+    <string name="update_checking">جارٍ التحقق من التحديثات…</string>
+    <string name="update_up_to_date">أنت تستخدم أحدث إصدار</string>
+    <string name="update_available_title">يتوفر إصدار جديد</string>
+    <string name="update_btn_play">التحديث عبر Google Play</string>
+    <string name="update_btn_download">تنزيل التحديث</string>
+    <string name="update_error_network">تعذّر التحقق من التحديثات. تحقق من اتصالك وحاول مرة أخرى</string>
+    <string name="update_error_server">خدمة التحديث غير متوفرة مؤقتًا. حاول مرة أخرى لاحقًا</string>
+    <string name="update_unsupported_abi">التحديثات داخل التطبيق غير مدعومة على معمارية هذا الجهاز. يُرجى تنزيل أحدث إصدار من موقعنا الإلكتروني</string>
+    <string name="update_download_started">بدأ التنزيل. انقر على الإشعار عند اكتماله للتثبيت</string>
 </resources>

@@ -1034,4 +1034,15 @@
     <string name="reader_info_bar_total_progress">Total Progress</string>
     <string name="reader_info_bar_page_and_total">Page · Progress</string>
     <string name="reader_info_bar_book_name">Book Title</string>
+    <!-- 应用版本更新检测（About 页） -->
+    <string name="settings_check_update">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_up_to_date">You are on the latest version</string>
+    <string name="update_available_title">New version available</string>
+    <string name="update_btn_play">Update on Google Play</string>
+    <string name="update_btn_download">Download update</string>
+    <string name="update_error_network">Couldn\'t check for updates. Check your connection and try again</string>
+    <string name="update_error_server">Update service is temporarily unavailable. Try again later</string>
+    <string name="update_unsupported_abi">In-app updates aren\'t supported on this device architecture. Please download the latest version from our website</string>
+    <string name="update_download_started">Download started. Tap the notification when it finishes to install</string>
 </resources>

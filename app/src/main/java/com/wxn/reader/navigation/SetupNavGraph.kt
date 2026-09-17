@@ -21,6 +21,7 @@ import com.wxn.reader.presentation.settings.components.DownloadHistoryScreen
 import com.wxn.reader.presentation.settings.components.FeedbackScreen
 import com.wxn.reader.presentation.settings.components.GeneralSettings
 import com.wxn.reader.presentation.settings.components.SpeakerScreen
+import com.wxn.reader.presentation.settings.components.AboutAppScreen
 import com.wxn.reader.presentation.shelves.ShelvesScreen
 import com.wxn.reader.presentation.settings.components.ThemeScreen
 import com.wxn.reader.presentation.sharedComponents.PremiumScreen
@@ -159,6 +160,12 @@ fun SetupNavGraph(startDestination: String) {
             route = Screens.BackupSettingsScreen.route,
         ) {
             com.wxn.reader.presentation.settings.backup.BackupSettingsScreen()
+        }
+
+        composable(
+            route = Screens.AboutAppScreen.route,
+        ) {
+            AboutAppScreen()
         }
 
         //composable(

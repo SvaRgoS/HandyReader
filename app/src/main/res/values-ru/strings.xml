@@ -1029,4 +1029,15 @@
     <string name="reader_info_bar_total_progress">Общий прогресс</string>
     <string name="reader_info_bar_page_and_total">Страница · Прогресс</string>
     <string name="reader_info_bar_book_name">Название книги</string>
+    <!-- Проверка обновлений приложения (страница «О приложении») -->
+    <string name="settings_check_update">Проверить обновления</string>
+    <string name="update_checking">Проверка обновлений…</string>
+    <string name="update_up_to_date">У вас последняя версия</string>
+    <string name="update_available_title">Доступна новая версия</string>
+    <string name="update_btn_play">Обновить в Google Play</string>
+    <string name="update_btn_download">Скачать обновление</string>
+    <string name="update_error_network">Не удалось проверить обновления. Проверьте подключение и повторите попытку</string>
+    <string name="update_error_server">Служба обновлений временно недоступна. Повторите попытку позже</string>
+    <string name="update_unsupported_abi">Встроенные обновления не поддерживаются на архитектуре этого устройства. Скачайте последнюю версию с нашего сайта</string>
+    <string name="update_download_started">Загрузка началась. Когда она завершится, коснитесь уведомления, чтобы установить обновление</string>
 </resources>

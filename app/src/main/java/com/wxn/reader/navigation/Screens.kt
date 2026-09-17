@@ -46,7 +46,7 @@ sealed class Screens(val route: String) {
     data object ThemeScreen: Screens("theme_screen")
     data object DeletedBooksScreen: Screens("deleted_books_screen")
     data object ShelvesScreen: Screens("shelves_screen")
-//    data object AboutAppScreen: Screens("about_app_screen")
+    data object AboutAppScreen: Screens("about_app_screen")
 
 
     data object NotesScreen: Screens("notes_screen")

@@ -26,6 +26,8 @@ object ApiPath {
 
     const val API_TRANSLATE_LANGUAGES = "/api/v1/translate/languages"
 
+    const val API_APP_UPDATE = "/api/v1/app-update"
+
     const val API_DICTIONARY = "/api/dictionary"
 }
 

@@ -13,6 +13,8 @@ import com.wxn.reader.data.remote.api.TranslateApi
 import com.wxn.reader.data.remote.api.TranslateApiImpl
 import com.wxn.reader.data.remote.api.DictionaryApi
 import com.wxn.reader.data.remote.api.DictionaryApiImpl
+import com.wxn.reader.data.remote.api.AppUpdateApi
+import com.wxn.reader.data.remote.api.AppUpdateApiImpl
 import com.wxn.reader.data.remote.auth.AuthInterceptor
 import com.wxn.reader.data.remote.auth.TokenManager
 import com.wxn.reader.data.remote.opds.OpdsAuthAuthenticator
@@ -154,6 +156,17 @@ object NetworkModule {
     fun provideDictionaryApi(httpClient: HttpClient): DictionaryApi {
         return DictionaryApiImpl(httpClient)
     }
+
+    @Provides
+    @Singleton
+    fun provideAppUpdateApi(httpClient: HttpClient): AppUpdateApi {
+        return AppUpdateApiImpl(httpClient)
+    }
+
+    /** 渠道标识供 UseCase 注入（BuildConfig 常量不可在单测中改变，故经 DI 间接） */
+    @Provides
+    @Singleton
+    fun provideIsPlayChannel(): Boolean = BuildConfig.IS_GOOGLE_PLAY
 
     @Provides
     @Singleton

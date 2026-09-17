@@ -1028,4 +1028,15 @@
     <string name="reader_info_bar_total_progress">Progression totale</string>
     <string name="reader_info_bar_page_and_total">Page · Progression</string>
     <string name="reader_info_bar_book_name">Titre du livre</string>
+    <!-- Recherche de mise à jour de l\'appli (page À propos) -->
+    <string name="settings_check_update">Rechercher des mises à jour</string>
+    <string name="update_checking">Recherche de mise à jour…</string>
+    <string name="update_up_to_date">Vous utilisez déjà la dernière version</string>
+    <string name="update_available_title">Nouvelle version disponible</string>
+    <string name="update_btn_play">Mettre à jour via Google Play</string>
+    <string name="update_btn_download">Télécharger la mise à jour</string>
+    <string name="update_error_network">Impossible de rechercher des mises à jour. Vérifiez votre connexion puis réessayez</string>
+    <string name="update_error_server">Le service de mise à jour est temporairement indisponible. Réessayez plus tard</string>
+    <string name="update_unsupported_abi">Les mises à jour intégrées ne sont pas prises en charge sur l\'architecture de cet appareil. Veuillez télécharger la dernière version depuis notre site</string>
+    <string name="update_download_started">Téléchargement lancé. Touchez la notification une fois terminé pour installer</string>
 </resources>

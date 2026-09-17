@@ -63,6 +63,15 @@ android {
         buildConfigField("String", "FEEDBACK_API_URL", "\"https://handyreader.top\"")
         buildConfigField("String", "API_KEY", "\"${apikeyProperties.getProperty("apiKey", "")}\"")
         buildConfigField("String", "EDGE_TTS_KEY", "\"${apikeyProperties.getProperty("EDGE_TTS_API_KEY", "")}\"")
+
+        // 渠道标识：显式 -PisPlayBuild=true/false 优先；未传时按本次任务名推断——
+        // bundle* 任务产出 AAB（Play 渠道），assemble*/install* 产出 APK（非 Play 渠道）。
+        // 与下方 splits.abi 的任务名判断保持同一模式；本项目约定 bundle 与 assemble
+        // 本就不能在同一次调用里执行（shrink resources 冲突），故无歧义场景。
+        val isPlayBuildProp = (project.findProperty("isPlayBuild") as? String)?.toBoolean()
+        val channelTaskNames = gradle.startParameter.taskNames.map { it.lowercase() }
+        val isPlayBuild = isPlayBuildProp ?: channelTaskNames.any { it.contains("bundle") }
+        buildConfigField("boolean", "IS_GOOGLE_PLAY", "$isPlayBuild")
     }
 
     signingConfigs {

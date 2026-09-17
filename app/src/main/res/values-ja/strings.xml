@@ -1027,4 +1027,15 @@
     <string name="reader_info_bar_total_progress">全体進捗</string>
     <string name="reader_info_bar_page_and_total">ページ · 進捗</string>
     <string name="reader_info_bar_book_name">書籍名</string>
+    <!-- アプリ内アップデート検知（About 画面） -->
+    <string name="settings_check_update">更新を確認</string>
+    <string name="update_checking">更新を確認中…</string>
+    <string name="update_up_to_date">最新バージョンです</string>
+    <string name="update_available_title">新しいバージョンがあります</string>
+    <string name="update_btn_play">Google Play で更新</string>
+    <string name="update_btn_download">更新をダウンロード</string>
+    <string name="update_error_network">更新を確認できませんでした。接続を確認してもう一度お試しください</string>
+    <string name="update_error_server">アップデートサービスが一時的に利用できません。後でもう一度お試しください</string>
+    <string name="update_unsupported_abi">この端末のアーキテクチャではアプリ内アップデートはサポートされていません。公式サイトから最新版をダウンロードしてください</string>
+    <string name="update_download_started">ダウンロードを開始しました。完了後、通知をタップしてインストールしてください</string>
 </resources>
