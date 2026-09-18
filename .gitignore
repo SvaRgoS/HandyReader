@@ -68,6 +68,7 @@ bookread/.gitignore
 bookparser/.gitignore
 base/.gitignore
 app/.gitignore
+config/
 
 # 根目录本地运行数据目录（书签/缓存/封面等）；锚定到根，避免误伤 app/config/（开源许可页 native 组件登记）
 /config/
