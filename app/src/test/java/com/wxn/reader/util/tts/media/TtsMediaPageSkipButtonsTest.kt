@@ -16,10 +16,10 @@ class TtsMediaPageSkipButtonsTest {
 
         assertEquals(2, buttons.size)
         assertEquals(Player.COMMAND_SEEK_BACK, buttons[0].playerCommand)
-        assertEquals(CommandButton.ICON_SKIP_BACK, buttons[0].icon)
+        assertEquals(CommandButton.ICON_REWIND, buttons[0].icon)
         assertEquals(CommandButton.SLOT_BACK, buttons[0].slots[0])
         assertEquals(Player.COMMAND_SEEK_FORWARD, buttons[1].playerCommand)
-        assertEquals(CommandButton.ICON_SKIP_FORWARD, buttons[1].icon)
+        assertEquals(CommandButton.ICON_FAST_FORWARD, buttons[1].icon)
         assertEquals(CommandButton.SLOT_FORWARD, buttons[1].slots[0])
     }
 }

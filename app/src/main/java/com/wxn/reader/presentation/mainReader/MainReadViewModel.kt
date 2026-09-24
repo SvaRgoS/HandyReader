@@ -70,6 +70,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 import javax.inject.Inject
 import com.wxn.reader.util.tts.TtsEngineState
@@ -262,6 +264,7 @@ class MainReadViewModel @Inject constructor(
     private val _isTtsPlaying = MutableStateFlow(false)
     val isTtsPlaying: StateFlow<Boolean> = _isTtsPlaying.asStateFlow()
     private val ttsReaderSession = TtsReaderSession()
+    private val ttsPageSkipMutex = Mutex()
     private var activeTtsReaderSessionId: Long? = null
     private var ttsSessionKeepingPanel: Long? = null
     private val ttsMediaOwnerId = "reader-${UUID.randomUUID()}"
@@ -1313,29 +1316,31 @@ class MainReadViewModel @Inject constructor(
     }
 
     private fun skipTtsPage(direction: TtsPageSkipDirection) {
-        val resumeAfterSkip = _isTtsPlaying.value
-        ttsReaderSession.cancel()
-        activeTtsReaderSessionId = null
-        ttsSessionKeepingPanel = null
-        ttsNavigator.stop()
-        pageController.stopReadPage()
-
         viewModelScope.launch {
-            if (!pageController.skipNarrationPage(direction)) {
+            ttsPageSkipMutex.withLock {
+                val resumeAfterSkip = _isTtsPlaying.value
+                ttsReaderSession.cancel()
+                activeTtsReaderSessionId = null
+                ttsSessionKeepingPanel = null
+                ttsNavigator.stop()
+                pageController.stopReadPage()
+
+                if (!pageController.skipNarrationPage(direction)) {
+                    if (resumeAfterSkip) {
+                        ttsPlay()
+                    } else {
+                        publishTtsMediaState(TtsMediaPlaybackState.Paused)
+                    }
+                    return@withLock
+                }
+
                 if (resumeAfterSkip) {
                     ttsPlay()
                 } else {
+                    _isTtsOn.value = true
+                    _isTtsPlaying.value = false
                     publishTtsMediaState(TtsMediaPlaybackState.Paused)
                 }
-                return@launch
-            }
-
-            if (resumeAfterSkip) {
-                ttsPlay()
-            } else {
-                _isTtsOn.value = true
-                _isTtsPlaying.value = false
-                publishTtsMediaState(TtsMediaPlaybackState.Paused)
             }
         }
     }

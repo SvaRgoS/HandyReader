@@ -8,12 +8,12 @@ object TtsMediaPageSkipButtons {
         backwardLabel: String,
         forwardLabel: String,
     ): List<CommandButton> = listOf(
-        CommandButton.Builder(CommandButton.ICON_SKIP_BACK)
+        CommandButton.Builder(CommandButton.ICON_REWIND)
             .setPlayerCommand(Player.COMMAND_SEEK_BACK)
             .setDisplayName(backwardLabel)
             .setSlots(CommandButton.SLOT_BACK)
             .build(),
-        CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD)
+        CommandButton.Builder(CommandButton.ICON_FAST_FORWARD)
             .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
             .setDisplayName(forwardLabel)
             .setSlots(CommandButton.SLOT_FORWARD)
