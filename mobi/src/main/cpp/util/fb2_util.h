@@ -131,6 +131,8 @@ private:
 
     void fb2_release();
 
+    static bool loadDocWithEncoding(tinyxml2::XMLDocument& doc, const std::string& path);
+
     /***
      * 缓存图片
      * @param env

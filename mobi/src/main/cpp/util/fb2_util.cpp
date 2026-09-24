@@ -3,6 +3,24 @@
 //
 
 #include "fb2_util.h"
+#include "encoding_util.h"
+
+bool fb2_util::loadDocWithEncoding(tinyxml2::XMLDocument& doc, const std::string& path) {
+    std::string utf8Content;
+    std::string encoding;
+    if (!encoding_util::load_file_as_utf8(path, utf8Content, encoding)) {
+        LOGE("loadDocWithEncoding: failed to read file: %s", path.c_str());
+        return false;
+    }
+    doc.ClearError();
+    doc.Clear();
+    const tinyxml2::XMLError err = doc.Parse(utf8Content.c_str(), utf8Content.size());
+    if (err != tinyxml2::XML_SUCCESS) {
+        LOGE("loadDocWithEncoding: Parse failed (encoding=%s, err=%d)", encoding.c_str(), err);
+        return false;
+    }
+    return true;
+}
 
 int loadMetaInfo(tinyxml2::XMLDocument &doc, MetaInfo &meta_info){
     tinyxml2::XMLElement *root = doc.FirstChildElement("FictionBook");
@@ -148,13 +166,13 @@ int fb2_util::load_fb2(const char* fullpath,
                     bool& isEncripted
 ) {
     tinyxml2::XMLDocument doc;
-    doc.ClearError();
-    doc.Clear();
-    if (doc.LoadFile(fullpath) != tinyxml2::XML_SUCCESS) {
+    if (!loadDocWithEncoding(doc, fullpath)) {
         return -1;
     }
     MetaInfo metainfo;
-    loadMetaInfo(doc, metainfo);
+    if (loadMetaInfo(doc, metainfo) != 1) {
+        return -1;
+    }
 
     coverPath = metainfo.coverPath;
     title = metainfo.title;
@@ -205,8 +223,12 @@ int fb2_util::getChapters(/*out*/std::vector<NavPoint> &points) {
     }
 
     tinyxml2::XMLElement* eleSection = body->FirstChildElement("section");
+    if (eleSection == nullptr) {
+        LOGE("%s:body has no section", __func__);
+        return 0;
+    }
     int index = 0;
-    do {
+    while (eleSection != nullptr) {
         index++;
         std::string title;
         xml_ext::get_ele_words(eleSection->FirstChildElement("p"), title);
@@ -219,7 +241,7 @@ int fb2_util::getChapters(/*out*/std::vector<NavPoint> &points) {
         points.emplace_back(chapter);
 
         eleSection = eleSection->NextSiblingElement("section");
-    } while(eleSection != nullptr);
+    }
 
     allChapters.clear();
     allChapters.insert(allChapters.end(), points.begin(), points.end());
@@ -329,7 +351,7 @@ int32_t fb2_util::getWordCount(std::vector<ChapterCount> &wordCounts) {
     }
     tinyxml2::XMLDocument doc2;
 
-    if (doc2.LoadFile(this->book_path.c_str()) != tinyxml2::XML_SUCCESS) {
+    if (!loadDocWithEncoding(doc2, this->book_path)) {
         return 0;
     }
 
@@ -385,9 +407,7 @@ int fb2_util::fb2_init() {
         return 0;
     }
 
-    doc.ClearError();
-    doc.Clear();
-    if (doc.LoadFile(book_path.c_str()) != tinyxml2::XML_SUCCESS) {
+    if (!loadDocWithEncoding(doc, book_path)) {
         return 0;
     }
 

@@ -77,6 +77,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
         util/epub_util.cpp
         util/fb2_util.h
         util/fb2_util.cpp
+        util/encoding_util.h
 
         util/tinyxml2.h
         util/tinyxml2.cpp
