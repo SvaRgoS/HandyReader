@@ -75,6 +75,7 @@ import javax.inject.Inject
 import com.wxn.reader.util.tts.TtsEngineState
 import com.wxn.reader.util.tts.TtsLanguageSelector
 import com.wxn.reader.util.tts.TtsNavigator
+import com.wxn.reader.util.tts.TtsPageSkipDirection
 import com.wxn.reader.util.tts.TtsPreviewCommand
 import com.wxn.reader.util.tts.TtsPreviewPolicy
 import com.wxn.reader.util.tts.TtsReaderSession
@@ -326,6 +327,8 @@ class MainReadViewModel @Inject constructor(
                 onPlay = ::resumeTtsFromMedia,
                 onPause = ::pauseTts,
                 onStop = ::stopTts,
+                onSkipBackward = { skipTtsPage(TtsPageSkipDirection.Backward) },
+                onSkipForward = { skipTtsPage(TtsPageSkipDirection.Forward) },
             ),
         )
 
@@ -1307,6 +1310,34 @@ class MainReadViewModel @Inject constructor(
         _isTtsOn.value = false
         _isTtsPlaying.value = false
         clearTtsMediaSession()
+    }
+
+    private fun skipTtsPage(direction: TtsPageSkipDirection) {
+        val resumeAfterSkip = _isTtsPlaying.value
+        ttsReaderSession.cancel()
+        activeTtsReaderSessionId = null
+        ttsSessionKeepingPanel = null
+        ttsNavigator.stop()
+        pageController.stopReadPage()
+
+        viewModelScope.launch {
+            if (!pageController.skipNarrationPage(direction)) {
+                if (resumeAfterSkip) {
+                    ttsPlay()
+                } else {
+                    publishTtsMediaState(TtsMediaPlaybackState.Paused)
+                }
+                return@launch
+            }
+
+            if (resumeAfterSkip) {
+                ttsPlay()
+            } else {
+                _isTtsOn.value = true
+                _isTtsPlaying.value = false
+                publishTtsMediaState(TtsMediaPlaybackState.Paused)
+            }
+        }
     }
 
     fun hideOutHrefDialog() {

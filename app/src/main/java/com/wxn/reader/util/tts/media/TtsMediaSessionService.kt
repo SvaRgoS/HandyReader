@@ -39,7 +39,7 @@ class TtsMediaSessionService : MediaSessionService() {
             )
             val session = MediaSession.Builder(this, player)
                 .setSessionActivity(createSessionActivity())
-                .setMediaButtonPreferences(listOf(stopButton()))
+                .setMediaButtonPreferences(mediaButtonPreferences())
                 .setCallback(SessionCallback())
                 .build()
             narrationPlayer = player
@@ -94,9 +94,15 @@ class TtsMediaSessionService : MediaSessionService() {
         return CommandButton.Builder(CommandButton.ICON_STOP)
             .setSessionCommand(STOP_COMMAND)
             .setDisplayName(getString(R.string.tts_media_stop))
-            .setSlots(CommandButton.SLOT_FORWARD)
+            .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
     }
+
+    private fun mediaButtonPreferences(): List<CommandButton> =
+        TtsMediaPageSkipButtons.create(
+            backwardLabel = getString(R.string.tts_media_previous_page),
+            forwardLabel = getString(R.string.tts_media_next_page),
+        ) + stopButton()
 
     private fun createNotificationProvider(): DefaultMediaNotificationProvider {
         return object : DefaultMediaNotificationProvider(this) {
@@ -111,6 +117,8 @@ class TtsMediaSessionService : MediaSessionService() {
                     .filter { index ->
                         val button = mediaButtons[index]
                         button.playerCommand == Player.COMMAND_PLAY_PAUSE ||
+                            button.playerCommand == Player.COMMAND_SEEK_BACK ||
+                            button.playerCommand == Player.COMMAND_SEEK_FORWARD ||
                             button.sessionCommand == STOP_COMMAND
                     }
                     .toIntArray()
@@ -129,7 +137,7 @@ class TtsMediaSessionService : MediaSessionService() {
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(sessionCommands)
                 .setAvailablePlayerCommands(session.player.availableCommands)
-                .setMediaButtonPreferences(listOf(stopButton()))
+                .setMediaButtonPreferences(mediaButtonPreferences())
                 .build()
         }
 

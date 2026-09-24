@@ -38,6 +38,9 @@ import com.wxn.reader.domain.use_case.notes.GetNotesForBookUseCase
 import com.wxn.reader.util.tts.TtsChapterTransition
 import com.wxn.reader.util.tts.TtsNavigator
 import com.wxn.reader.util.tts.TtsPageBuffer
+import com.wxn.reader.util.tts.TtsPageSkip
+import com.wxn.reader.util.tts.TtsPageSkipDirection
+import com.wxn.reader.util.tts.TtsPageSkipTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -787,6 +790,41 @@ open class PageViewController @Inject constructor(
             saveRead()
             callBack?.upContent()
             callBack?.upView()
+            clickListener?.onPageChange()
+        }
+        return true
+    }
+
+    private suspend fun moveToPreviousChapterForNarration(): Boolean {
+        val previousChapterIndex = withContext(Dispatchers.Main) {
+            if (durChapterIndex <= 0 || book == null) {
+                null
+            } else {
+                durChapterIndex - 1
+            }
+        } ?: return false
+
+        if (TtsChapterTransition.shouldLoadCurrentChapter(prevTextChapter)) {
+            loadContent(previousChapterIndex, upContent = false, resetPageOffset = false)
+        }
+        val previousChapter = prevTextChapter ?: return false
+
+        withContext(Dispatchers.Main) {
+            durChapterIndex = previousChapterIndex
+            durPageIndex = previousChapter.lastIndex
+            nextTextChapter = curTextChapter
+            curTextChapter = previousChapter
+            prevTextChapter = null
+        }
+
+        Coroutines.mainScope().launchIO {
+            loadContent(previousChapterIndex - 1, upContent = false, resetPageOffset = false)
+        }
+        withContext(Dispatchers.Main) {
+            saveRead()
+            callBack?.upContent()
+            callBack?.upView()
+            clickListener?.onPageChange()
         }
         return true
     }
@@ -1062,6 +1100,29 @@ open class PageViewController @Inject constructor(
             with(Dispatchers.Main) {
                 callBack?.upContent()
             }
+        }
+    }
+
+    suspend fun skipNarrationPage(direction: TtsPageSkipDirection): Boolean = withContext(Dispatchers.IO) {
+        val target = withContext(Dispatchers.Main) {
+            val currentChapter = textChapter(0)
+            TtsPageSkip.target(
+                currentPageIndex = durPageIndex,
+                pageCount = currentChapter?.pageSize ?: 0,
+                direction = direction,
+            )
+        } ?: return@withContext false
+
+        when (target) {
+            is TtsPageSkipTarget.Page -> withContext(Dispatchers.Main) {
+                setPageIndex(target.pageIndex)
+                callBack?.upContent()
+                callBack?.upView()
+                true
+            }
+
+            TtsPageSkipTarget.PreviousChapter -> moveToPreviousChapterForNarration()
+            TtsPageSkipTarget.NextChapter -> moveToNextChapterForNarration()
         }
     }
 

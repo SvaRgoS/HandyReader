@@ -260,6 +260,8 @@
     <string name="tts_voices_error">Системные голоса недоступны.</string>
     <string name="tts_retry">Повторить</string>
     <string name="tts_media_stop">Остановить</string>
+    <string name="tts_media_previous_page">Предыдущая страница</string>
+    <string name="tts_media_next_page">Следующая страница</string>
     <string name="tts_media_progress_description">%1$d%% · осталось ~%2$s</string>
     <string name="tts_media_remaining_hours_minutes">%1$d ч %2$d мин</string>
     <string name="tts_media_remaining_minutes">%d мин</string>

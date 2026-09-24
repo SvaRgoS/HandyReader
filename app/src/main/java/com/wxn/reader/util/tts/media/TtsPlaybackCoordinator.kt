@@ -14,6 +14,8 @@ enum class TtsMediaCommand {
     Play,
     Pause,
     Stop,
+    SkipBackward,
+    SkipForward,
 }
 
 data class TtsMediaState(
@@ -31,6 +33,8 @@ data class TtsPlaybackHandlers(
     val onPlay: () -> Unit,
     val onPause: () -> Unit,
     val onStop: () -> Unit,
+    val onSkipBackward: () -> Unit,
+    val onSkipForward: () -> Unit,
 )
 
 class TtsPlaybackCoordinator {
@@ -81,6 +85,8 @@ class TtsPlaybackCoordinator {
             TtsMediaCommand.Play -> activeHandlers.onPlay()
             TtsMediaCommand.Pause -> activeHandlers.onPause()
             TtsMediaCommand.Stop -> activeHandlers.onStop()
+            TtsMediaCommand.SkipBackward -> activeHandlers.onSkipBackward()
+            TtsMediaCommand.SkipForward -> activeHandlers.onSkipForward()
         }
     }
 }

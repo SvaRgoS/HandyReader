@@ -20,7 +20,7 @@ class TtsNarrationPlayerTest {
     }
 
     @Test
-    fun `maps system play and stop to narration commands without exposing seek`() {
+    fun `maps system page skip play and stop to narration commands without exposing arbitrary seek`() {
         val coordinator = TtsPlaybackCoordinator()
         val commands = mutableListOf<TtsMediaCommand>()
         coordinator.register(
@@ -29,6 +29,8 @@ class TtsNarrationPlayerTest {
                 onPlay = { commands += TtsMediaCommand.Play },
                 onPause = { commands += TtsMediaCommand.Pause },
                 onStop = { commands += TtsMediaCommand.Stop },
+                onSkipBackward = { commands += TtsMediaCommand.SkipBackward },
+                onSkipForward = { commands += TtsMediaCommand.SkipForward },
             ),
         )
         coordinator.publish(
@@ -41,13 +43,25 @@ class TtsNarrationPlayerTest {
         )
         val player = TtsNarrationPlayer(coordinator, textFormatter)
 
+        player.seekBack()
+        player.seekForward()
         player.setPlayWhenReady(true)
         player.stop()
 
-        assertEquals(listOf(TtsMediaCommand.Play, TtsMediaCommand.Stop), commands)
+        assertEquals(
+            listOf(
+                TtsMediaCommand.SkipBackward,
+                TtsMediaCommand.SkipForward,
+                TtsMediaCommand.Play,
+                TtsMediaCommand.Stop,
+            ),
+            commands,
+        )
         assertTrue(player.availableCommands.contains(Player.COMMAND_GET_TIMELINE))
         assertTrue(player.availableCommands.contains(Player.COMMAND_GET_CURRENT_MEDIA_ITEM))
         assertTrue(player.availableCommands.contains(Player.COMMAND_GET_METADATA))
+        assertTrue(player.availableCommands.contains(Player.COMMAND_SEEK_BACK))
+        assertTrue(player.availableCommands.contains(Player.COMMAND_SEEK_FORWARD))
         assertFalse(player.availableCommands.contains(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM))
         player.release()
     }
@@ -62,6 +76,8 @@ class TtsNarrationPlayerTest {
                 onPlay = {},
                 onPause = { commands += TtsMediaCommand.Pause },
                 onStop = {},
+                onSkipBackward = {},
+                onSkipForward = {},
             ),
         )
         coordinator.publish(
@@ -89,6 +105,8 @@ class TtsNarrationPlayerTest {
                 onPlay = {},
                 onPause = {},
                 onStop = {},
+                onSkipBackward = {},
+                onSkipForward = {},
             ),
         )
         coordinator.publish(
@@ -111,6 +129,8 @@ class TtsNarrationPlayerTest {
                 onPlay = {},
                 onPause = {},
                 onStop = {},
+                onSkipBackward = {},
+                onSkipForward = {},
             ),
         )
         coordinator.publish(

@@ -18,6 +18,8 @@ class TtsPlaybackCoordinatorTest {
                 onPlay = { played = true },
                 onPause = {},
                 onStop = {},
+                onSkipBackward = {},
+                onSkipForward = {},
             ),
         )
         coordinator.publish(
@@ -34,6 +36,39 @@ class TtsPlaybackCoordinatorTest {
     }
 
     @Test
+    fun `dispatches page skip commands to the registered reader`() {
+        val coordinator = TtsPlaybackCoordinator()
+        val commands = mutableListOf<TtsMediaCommand>()
+
+        coordinator.register(
+            ownerId = "reader",
+            handlers = TtsPlaybackHandlers(
+                onPlay = {},
+                onPause = {},
+                onStop = {},
+                onSkipBackward = { commands += TtsMediaCommand.SkipBackward },
+                onSkipForward = { commands += TtsMediaCommand.SkipForward },
+            ),
+        )
+        coordinator.publish(
+            ownerId = "reader",
+            state = TtsMediaState(
+                bookId = 1L,
+                bookTitle = "Book",
+                playbackState = TtsMediaPlaybackState.Playing,
+            ),
+        )
+
+        coordinator.dispatch(TtsMediaCommand.SkipBackward)
+        coordinator.dispatch(TtsMediaCommand.SkipForward)
+
+        assertEquals(
+            listOf(TtsMediaCommand.SkipBackward, TtsMediaCommand.SkipForward),
+            commands,
+        )
+    }
+
+    @Test
     fun `unregistering the active reader clears media state and rejects stale commands`() {
         val coordinator = TtsPlaybackCoordinator()
         var played = false
@@ -44,6 +79,8 @@ class TtsPlaybackCoordinatorTest {
                 onPlay = { played = true },
                 onPause = {},
                 onStop = {},
+                onSkipBackward = {},
+                onSkipForward = {},
             ),
         )
         coordinator.publish(
@@ -68,6 +105,8 @@ class TtsPlaybackCoordinatorTest {
                 onPlay = { played = true },
                 onPause = {},
                 onStop = {},
+                onSkipBackward = {},
+                onSkipForward = {},
             ),
         )
         coordinator.publish(

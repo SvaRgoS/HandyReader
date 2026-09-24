@@ -24,6 +24,8 @@ class TtsNarrationPlayer(
     private val availableCommands = Player.Commands.Builder()
         .add(Player.COMMAND_PLAY_PAUSE)
         .add(Player.COMMAND_STOP)
+        .add(Player.COMMAND_SEEK_BACK)
+        .add(Player.COMMAND_SEEK_FORWARD)
         .add(Player.COMMAND_GET_CURRENT_MEDIA_ITEM)
         .add(Player.COMMAND_GET_TIMELINE)
         .add(Player.COMMAND_GET_METADATA)
@@ -93,6 +95,8 @@ class TtsNarrationPlayer(
             .setPlaylist(listOf(itemData))
             .setCurrentMediaItemIndex(0)
             .setContentPositionMs(PositionSupplier.getConstant(state.estimatedPositionMs))
+            .setSeekBackIncrementMs(PAGE_NAVIGATION_INCREMENT_MS)
+            .setSeekForwardIncrementMs(PAGE_NAVIGATION_INCREMENT_MS)
             .build()
     }
 
@@ -108,9 +112,26 @@ class TtsNarrationPlayer(
         return Futures.immediateVoidFuture()
     }
 
+    override fun handleSeek(
+        mediaItemIndex: Int,
+        positionMs: Long,
+        seekCommand: Int,
+    ): ListenableFuture<*> {
+        when (seekCommand) {
+            Player.COMMAND_SEEK_BACK -> playbackCoordinator.dispatch(TtsMediaCommand.SkipBackward)
+            Player.COMMAND_SEEK_FORWARD -> playbackCoordinator.dispatch(TtsMediaCommand.SkipForward)
+        }
+        return Futures.immediateVoidFuture()
+    }
+
     override fun handleRelease(): ListenableFuture<*> {
         scope.cancel()
         return Futures.immediateVoidFuture()
     }
 
+    private companion object {
+        // Media3 requires a non-zero increment for seek-back/seek-forward commands. The
+        // reported duration remains an estimate; the command itself always moves one page.
+        const val PAGE_NAVIGATION_INCREMENT_MS = 30_000L
+    }
 }
