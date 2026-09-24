@@ -78,6 +78,7 @@ import com.wxn.reader.util.tts.TtsEngineState
 import com.wxn.reader.util.tts.TtsLanguageSelector
 import com.wxn.reader.util.tts.TtsNavigator
 import com.wxn.reader.util.tts.TtsPageSkipDirection
+import com.wxn.reader.util.tts.TtsPageSkipRequestGate
 import com.wxn.reader.util.tts.TtsPreviewCommand
 import com.wxn.reader.util.tts.TtsPreviewPolicy
 import com.wxn.reader.util.tts.TtsReaderSession
@@ -265,6 +266,7 @@ class MainReadViewModel @Inject constructor(
     val isTtsPlaying: StateFlow<Boolean> = _isTtsPlaying.asStateFlow()
     private val ttsReaderSession = TtsReaderSession()
     private val ttsPageSkipMutex = Mutex()
+    private val ttsPageSkipRequestGate = TtsPageSkipRequestGate()
     private var activeTtsReaderSessionId: Long? = null
     private var ttsSessionKeepingPanel: Long? = null
     private val ttsMediaOwnerId = "reader-${UUID.randomUUID()}"
@@ -1283,6 +1285,7 @@ class MainReadViewModel @Inject constructor(
             val isPlayging = _isTtsPlaying.value
             Logger.i("MainReadViewModel:toggleTts:isPlayging=$isPlayging")
             if (!isPlayging) {
+                ttsPageSkipRequestGate.cancel()
                 ttsPlay()
             } else {
                 pauseTts()
@@ -1291,6 +1294,7 @@ class MainReadViewModel @Inject constructor(
     }
 
     fun pauseTts() {
+        ttsPageSkipRequestGate.cancel()
         if (!_isTtsPlaying.value) {
             return
         }
@@ -1305,6 +1309,7 @@ class MainReadViewModel @Inject constructor(
     }
 
     fun stopTts() {
+        ttsPageSkipRequestGate.cancel()
         ttsReaderSession.cancel()
         activeTtsReaderSessionId = null
         ttsSessionKeepingPanel = null
@@ -1316,8 +1321,13 @@ class MainReadViewModel @Inject constructor(
     }
 
     private fun skipTtsPage(direction: TtsPageSkipDirection) {
+        val requestGeneration = ttsPageSkipRequestGate.begin()
         viewModelScope.launch {
             ttsPageSkipMutex.withLock {
+                if (!ttsPageSkipRequestGate.isCurrent(requestGeneration)) {
+                    return@withLock
+                }
+
                 val resumeAfterSkip = _isTtsPlaying.value
                 ttsReaderSession.cancel()
                 activeTtsReaderSessionId = null
@@ -1325,7 +1335,12 @@ class MainReadViewModel @Inject constructor(
                 ttsNavigator.stop()
                 pageController.stopReadPage()
 
-                if (!pageController.skipNarrationPage(direction)) {
+                val skipped = pageController.skipNarrationPage(direction)
+                if (!ttsPageSkipRequestGate.isCurrent(requestGeneration)) {
+                    return@withLock
+                }
+
+                if (!skipped) {
                     if (resumeAfterSkip) {
                         ttsPlay()
                     } else {
@@ -1402,6 +1417,7 @@ class MainReadViewModel @Inject constructor(
 
     fun previewTtsVoice(voiceName: String) {
         if (TtsPreviewPolicy.commandFor(_isTtsPlaying.value) == TtsPreviewCommand.StopNarrationThenPreview) {
+            ttsPageSkipRequestGate.cancel()
             ttsReaderSession.cancel()
             activeTtsReaderSessionId = null
             ttsSessionKeepingPanel = null
@@ -1426,6 +1442,7 @@ class MainReadViewModel @Inject constructor(
             return
         }
         val preservePanel = ttsSessionKeepingPanel == sessionId
+        ttsPageSkipRequestGate.cancel()
         activeTtsReaderSessionId = null
         ttsSessionKeepingPanel = null
         _isTtsOn.value = preservePanel
@@ -1440,6 +1457,7 @@ class MainReadViewModel @Inject constructor(
 
     private fun resumeTtsFromMedia() {
         if (!_isTtsPlaying.value && !pageController.currentPage()?.text.isNullOrEmpty()) {
+            ttsPageSkipRequestGate.cancel()
             ttsPlay()
         }
     }
