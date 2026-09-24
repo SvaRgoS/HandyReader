@@ -113,14 +113,18 @@ class TtsMediaSessionService : MediaSessionService() {
                 actionFactory: MediaNotification.ActionFactory,
             ): IntArray {
                 super.addNotificationActions(mediaSession, mediaButtons, builder, actionFactory)
-                return (0 until mediaButtons.size)
-                    .filter { index ->
-                        val button = mediaButtons[index]
-                        button.playerCommand == Player.COMMAND_PLAY_PAUSE ||
-                            button.playerCommand == Player.COMMAND_SEEK_BACK ||
-                            button.playerCommand == Player.COMMAND_SEEK_FORWARD ||
-                            button.sessionCommand == STOP_COMMAND
-                    }
+                return listOf(
+                    mediaButtons.indexOfFirst {
+                        it.sessionCommand == TtsMediaPageSkipButtons.previousPageCommand
+                    },
+                    mediaButtons.indexOfFirst {
+                        it.playerCommand == Player.COMMAND_PLAY_PAUSE
+                    },
+                    mediaButtons.indexOfFirst {
+                        it.sessionCommand == TtsMediaPageSkipButtons.nextPageCommand
+                    },
+                )
+                    .filter { it >= 0 }
                     .toIntArray()
             }
         }
@@ -133,6 +137,8 @@ class TtsMediaSessionService : MediaSessionService() {
         ): MediaSession.ConnectionResult {
             val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                 .add(STOP_COMMAND)
+                .add(TtsMediaPageSkipButtons.previousPageCommand)
+                .add(TtsMediaPageSkipButtons.nextPageCommand)
                 .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(sessionCommands)
@@ -147,11 +153,14 @@ class TtsMediaSessionService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
-            if (customCommand == STOP_COMMAND) {
-                playbackCoordinator.dispatch(TtsMediaCommand.Stop)
-                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            val mediaCommand = when (customCommand) {
+                STOP_COMMAND -> TtsMediaCommand.Stop
+                TtsMediaPageSkipButtons.previousPageCommand -> TtsMediaCommand.SkipBackward
+                TtsMediaPageSkipButtons.nextPageCommand -> TtsMediaCommand.SkipForward
+                else -> return super.onCustomCommand(session, controller, customCommand, args)
             }
-            return super.onCustomCommand(session, controller, customCommand, args)
+            playbackCoordinator.dispatch(mediaCommand)
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
     }
 
