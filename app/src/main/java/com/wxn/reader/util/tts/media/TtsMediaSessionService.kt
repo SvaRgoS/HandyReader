@@ -22,6 +22,15 @@ import com.wxn.reader.R
 import com.wxn.base.util.Logger
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class TtsMediaSessionService : MediaSessionService() {
@@ -30,6 +39,9 @@ class TtsMediaSessionService : MediaSessionService() {
 
     private var narrationPlayer: TtsNarrationPlayer? = null
     private var mediaSession: MediaSession? = null
+    private var mediaButtonAudioAnchor: TtsMediaButtonAudioAnchor? = null
+    private var bluetoothAudioRouteMonitor: TtsBluetoothAudioRouteMonitor? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
@@ -46,13 +58,35 @@ class TtsMediaSessionService : MediaSessionService() {
                 .build()
             narrationPlayer = player
             mediaSession = session
+            val audioAnchor = TtsMediaButtonAudioAnchor(AndroidTtsMediaButtonAudioOutput())
+            val bluetoothRouteMonitor = TtsBluetoothAudioRouteMonitor(this)
+            mediaButtonAudioAnchor = audioAnchor
+            bluetoothAudioRouteMonitor = bluetoothRouteMonitor
+            bluetoothRouteMonitor.start()
             addSession(session)
+            serviceScope.launch {
+                combine(
+                    playbackCoordinator.state
+                        .map { state -> state.playbackState }
+                        .distinctUntilChanged(),
+                    bluetoothRouteMonitor.isBluetoothOutputConnected,
+                ) { playbackState, isBluetoothOutputConnected ->
+                    playbackState to isBluetoothOutputConnected
+                }
+                    .collect { (playbackState, isBluetoothOutputConnected) ->
+                        audioAnchor.update(playbackState, isBluetoothOutputConnected)
+                    }
+            }
         }.onFailure { error ->
             Logger.e("TtsMediaSessionService::onCreate failed: $error")
             mediaSession?.release()
             mediaSession = null
             narrationPlayer?.release()
             narrationPlayer = null
+            mediaButtonAudioAnchor?.release()
+            mediaButtonAudioAnchor = null
+            bluetoothAudioRouteMonitor?.stop()
+            bluetoothAudioRouteMonitor = null
             stopSelf()
         }
     }
@@ -68,6 +102,11 @@ class TtsMediaSessionService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
+        mediaButtonAudioAnchor?.release()
+        mediaButtonAudioAnchor = null
+        bluetoothAudioRouteMonitor?.stop()
+        bluetoothAudioRouteMonitor = null
         mediaSession?.let { session ->
             if (isSessionAdded(session)) {
                 removeSession(session)
