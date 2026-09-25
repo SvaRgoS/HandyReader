@@ -121,6 +121,7 @@ fun ReaderView(
     val useBookTtsLanguage by viewModel.useBookTtsLanguage.collectAsStateWithLifecycle()
     val ttsVoicesUiState by viewModel.ttsVoicesUiState.collectAsStateWithLifecycle()
     val selectedTtsVoiceName by viewModel.selectedTtsVoiceName.collectAsStateWithLifecycle()
+    val ttsSleepTimerRemainingMillis by viewModel.ttsSleepTimerRemainingMillis.collectAsStateWithLifecycle()
 
     val outHref by viewModel.outHref.collectAsStateWithLifecycle()
     val showOutHrefDialog by viewModel.showOutHrefDialog.collectAsStateWithLifecycle()
@@ -209,6 +210,7 @@ fun ReaderView(
                 useBookLanguage = useBookTtsLanguage,
                 voicesUiState = ttsVoicesUiState,
                 selectedVoiceName = selectedTtsVoiceName,
+                sleepTimerRemainingMillis = ttsSleepTimerRemainingMillis,
                 onPlay = viewModel::toggleTts,
                 onPause = viewModel::pauseTts,
                 onEnd = viewModel::stopTts,
@@ -221,6 +223,7 @@ fun ReaderView(
                 onRetryVoices = viewModel::retryTtsVoices,
                 onVoiceChange = viewModel::setTtsVoice,
                 onPreviewVoice = viewModel::previewTtsVoice,
+                onSleepTimerOptionSelected = viewModel::setTtsSleepTimer,
             )
             // ActionModeLayout
             if (showTextToolbar || isHighlightsDrawerOpen || isChaptersDrawerOpen || isNotesDrawerOpen || isBookmarksDrawerOpen) {

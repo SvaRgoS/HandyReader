@@ -38,6 +38,8 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedButton
@@ -64,6 +66,8 @@ import com.wxn.reader.R
 import com.wxn.reader.util.LanguageInfo
 import com.wxn.reader.util.LanguageUtil
 import com.wxn.reader.util.tts.TtsVoicesUiState
+import com.wxn.reader.util.tts.TtsSleepTimerOption
+import java.util.concurrent.TimeUnit
 
 enum class VoiceSettingsLocation {
     BottomSheet,
@@ -96,6 +100,7 @@ fun TtsPlayer(
     useBookLanguage: Boolean,
     voicesUiState: TtsVoicesUiState,
     selectedVoiceName: String,
+    sleepTimerRemainingMillis: Long?,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onEnd: () -> Unit,
@@ -108,6 +113,7 @@ fun TtsPlayer(
     onRetryVoices: () -> Unit,
     onVoiceChange: (String) -> Unit,
     onPreviewVoice: (String) -> Unit,
+    onSleepTimerOptionSelected: (TtsSleepTimerOption) -> Unit,
 ) {
     var isExpanded by remember { mutableStateOf(true) }
     val heightAnimation by animateFloatAsState(
@@ -173,6 +179,8 @@ fun TtsPlayer(
                                 onPlay = onPlay,
                                 onPause = onPause,
                                 onEnd = onEnd,
+                                sleepTimerRemainingMillis = sleepTimerRemainingMillis,
+                                onSleepTimerOptionSelected = onSleepTimerOptionSelected,
                                 showTtsSettings = {
                                     onLoadVoices()
                                     showTtsSettings = true
@@ -254,8 +262,11 @@ fun MainTtsPlayer(
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onEnd: () -> Unit,
+    sleepTimerRemainingMillis: Long?,
+    onSleepTimerOptionSelected: (TtsSleepTimerOption) -> Unit,
     showTtsSettings: () -> Unit,
 ) {
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -287,6 +298,34 @@ fun MainTtsPlayer(
                         contentDescription = "play / pause",
                         modifier = Modifier.size(38.dp)
                     )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+                ElevatedButton(
+                    contentPadding = PaddingValues(0.dp),
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier.size(60.dp),
+                    onClick = { showSleepTimerDialog = true },
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Rounded.Timer,
+                            contentDescription = stringResource(R.string.tts_sleep_timer_title),
+                            modifier = Modifier.size(
+                                if (sleepTimerRemainingMillis == null) 30.dp else 22.dp,
+                            ),
+                        )
+                        sleepTimerRemainingMillis?.let { remainingMillis ->
+                            Text(
+                                text = stringResource(
+                                    R.string.tts_sleep_timer_duration,
+                                    TimeUnit.MILLISECONDS.toMinutes(remainingMillis),
+                                    TimeUnit.MILLISECONDS.toSeconds(remainingMillis) % 60,
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
                 }
 
             }
@@ -336,6 +375,45 @@ fun MainTtsPlayer(
                 }
             }
         }
+    }
+
+    if (showSleepTimerDialog) {
+        AlertDialog(
+            onDismissRequest = { showSleepTimerDialog = false },
+            title = { Text(stringResource(R.string.tts_sleep_timer_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    sleepTimerRemainingMillis?.let { remainingMillis ->
+                        Text(
+                            stringResource(
+                                R.string.tts_sleep_timer_duration,
+                                TimeUnit.MILLISECONDS.toMinutes(remainingMillis),
+                                TimeUnit.MILLISECONDS.toSeconds(remainingMillis) % 60,
+                            ),
+                        )
+                    }
+                    TtsSleepTimerOption.entries.forEach { option ->
+                        ElevatedButton(
+                            onClick = {
+                                onSleepTimerOptionSelected(option)
+                                showSleepTimerDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                when (option) {
+                                    TtsSleepTimerOption.Off -> stringResource(R.string.tts_sleep_timer_off)
+                                    TtsSleepTimerOption.Minutes30 -> stringResource(R.string.tts_sleep_timer_30_minutes)
+                                    TtsSleepTimerOption.Hour1 -> stringResource(R.string.tts_sleep_timer_1_hour)
+                                    TtsSleepTimerOption.Hours2 -> stringResource(R.string.tts_sleep_timer_2_hours)
+                                },
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+        )
     }
 }
 

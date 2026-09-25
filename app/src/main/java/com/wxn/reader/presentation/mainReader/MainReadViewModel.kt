@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.graphics.Rect
 import android.graphics.RectF
+import android.os.SystemClock
 import androidx.compose.runtime.Stable
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.Color
@@ -82,6 +83,8 @@ import com.wxn.reader.util.tts.TtsPageSkipRequestGate
 import com.wxn.reader.util.tts.TtsPreviewCommand
 import com.wxn.reader.util.tts.TtsPreviewPolicy
 import com.wxn.reader.util.tts.TtsReaderSession
+import com.wxn.reader.util.tts.TtsSleepTimer
+import com.wxn.reader.util.tts.TtsSleepTimerOption
 import com.wxn.reader.util.tts.TtsVoicesUiState
 import com.wxn.reader.util.tts.media.TtsMediaPlaybackState
 import com.wxn.reader.util.tts.media.TtsMediaProgress
@@ -90,6 +93,8 @@ import com.wxn.reader.util.tts.media.TtsMediaState
 import com.wxn.reader.util.tts.media.TtsPlaybackCoordinator
 import com.wxn.reader.util.tts.media.TtsPlaybackHandlers
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import java.util.UUID
 
 @HiltViewModel
@@ -270,6 +275,10 @@ class MainReadViewModel @Inject constructor(
     private var activeTtsReaderSessionId: Long? = null
     private var ttsSessionKeepingPanel: Long? = null
     private val ttsMediaOwnerId = "reader-${UUID.randomUUID()}"
+    private val ttsSleepTimer = TtsSleepTimer(SystemClock::elapsedRealtime)
+    private var ttsSleepTimerJob: Job? = null
+    private val _ttsSleepTimerRemainingMillis = MutableStateFlow<Long?>(null)
+    val ttsSleepTimerRemainingMillis: StateFlow<Long?> = _ttsSleepTimerRemainingMillis.asStateFlow()
     private val _ttsSpeed = MutableStateFlow(1.0)
     val ttsSpeed: StateFlow<Double> = _ttsSpeed.asStateFlow()
 
@@ -1271,12 +1280,7 @@ class MainReadViewModel @Inject constructor(
             }
         } else {
             ToastUtil.show("Language not supported")
-            ttsReaderSession.cancel()
-            activeTtsReaderSessionId = null
-            ttsSessionKeepingPanel = null
-            _isTtsOn.value = false
-            _isTtsPlaying.value = false
-            clearTtsMediaSession()
+            stopTts()
         }
     }
 
@@ -1309,6 +1313,7 @@ class MainReadViewModel @Inject constructor(
     }
 
     fun stopTts() {
+        clearTtsSleepTimer()
         ttsPageSkipRequestGate.cancel()
         ttsReaderSession.cancel()
         activeTtsReaderSessionId = null
@@ -1441,6 +1446,7 @@ class MainReadViewModel @Inject constructor(
         if (!ttsReaderSession.finish(sessionId)) {
             return
         }
+        clearTtsSleepTimer()
         val preservePanel = ttsSessionKeepingPanel == sessionId
         ttsPageSkipRequestGate.cancel()
         activeTtsReaderSessionId = null
@@ -1460,6 +1466,30 @@ class MainReadViewModel @Inject constructor(
             ttsPageSkipRequestGate.cancel()
             ttsPlay()
         }
+    }
+
+    fun setTtsSleepTimer(option: TtsSleepTimerOption) {
+        clearTtsSleepTimer()
+        val durationMillis = option.durationMillis ?: return
+        ttsSleepTimer.start(durationMillis)
+        ttsSleepTimerJob = viewModelScope.launch {
+            while (isActive) {
+                val remainingMillis = ttsSleepTimer.remainingMillis() ?: return@launch
+                _ttsSleepTimerRemainingMillis.value = remainingMillis
+                if (ttsSleepTimer.consumeExpiry()) {
+                    stopTts()
+                    return@launch
+                }
+                delay(remainingMillis.coerceAtMost(SLEEP_TIMER_TICK_MILLIS))
+            }
+        }
+    }
+
+    private fun clearTtsSleepTimer() {
+        ttsSleepTimerJob?.cancel()
+        ttsSleepTimerJob = null
+        ttsSleepTimer.cancel()
+        _ttsSleepTimerRemainingMillis.value = null
     }
 
     private fun publishTtsMediaState(playbackState: TtsMediaPlaybackState) {
@@ -1503,5 +1533,9 @@ class MainReadViewModel @Inject constructor(
         getApplication<Application>().stopService(
             Intent(getApplication(), TtsMediaSessionService::class.java),
         )
+    }
+
+    private companion object {
+        const val SLEEP_TIMER_TICK_MILLIS = 1_000L
     }
 }

@@ -3,6 +3,8 @@ package com.wxn.reader.util.tts.media
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
+import androidx.core.content.IntentCompat
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.Player
 import androidx.media3.session.CommandButton
@@ -161,6 +163,27 @@ class TtsMediaSessionService : MediaSessionService() {
             }
             playbackCoordinator.dispatch(mediaCommand)
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
+
+        override fun onMediaButtonEvent(
+            session: MediaSession,
+            controllerInfo: MediaSession.ControllerInfo,
+            mediaButtonIntent: Intent,
+        ): Boolean {
+            val keyEvent = IntentCompat.getParcelableExtra(
+                mediaButtonIntent,
+                Intent.EXTRA_KEY_EVENT,
+                KeyEvent::class.java,
+            ) ?: return super.onMediaButtonEvent(session, controllerInfo, mediaButtonIntent)
+            val command = TtsMediaButtonMapper.commandFor(
+                keyCode = keyEvent.keyCode,
+                isPlaying = playbackCoordinator.state.value.playbackState == TtsMediaPlaybackState.Playing,
+            ) ?: return super.onMediaButtonEvent(session, controllerInfo, mediaButtonIntent)
+            Logger.d(
+                "TtsMediaSessionService::onMediaButtonEvent keyCode=${keyEvent.keyCode} command=$command",
+            )
+            playbackCoordinator.dispatch(command)
+            return true
         }
     }
 

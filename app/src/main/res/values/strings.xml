@@ -213,6 +213,12 @@
     <string name="unable_to_open_privacy_policy">Unable to open Privacy Policy</string>
     <string name="navigate_to">Navigate to</string>
     <string name="back">Back</string>
+    <string name="tts_sleep_timer_title">Sleep timer</string>
+    <string name="tts_sleep_timer_off">Off</string>
+    <string name="tts_sleep_timer_30_minutes">30 minutes</string>
+    <string name="tts_sleep_timer_1_hour">1 hour</string>
+    <string name="tts_sleep_timer_2_hours">2 hours</string>
+    <string name="tts_sleep_timer_duration">%1$d:%2$02d</string>
 
     <string name="ebooks">eBooks</string>
     <string name="audio_books">AudioBooks</string>
