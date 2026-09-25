@@ -1,11 +1,12 @@
 package com.wxn.reader.presentation.home.components
 
 import android.net.Uri
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,6 +38,7 @@ import com.wxn.base.util.Logger
 import kotlin.random.Random
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun ListLayout(
     clearSearch: () -> Unit,
     books: LazyPagingItems<Book>,
@@ -110,8 +112,12 @@ fun ListLayout(
 
 
     val isAddingBook by viewModel.isAddingBooks.collectAsState()
+    val listState = rememberLazyListState(
+        prefetchStrategy = remember { TwoStageBookListPrefetchStrategy() },
+    )
 
     LazyColumn(
+        state = listState,
         userScrollEnabled = !isAddingBook,
         contentPadding = PaddingValues(vertical = 16.dp, horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -124,27 +130,22 @@ fun ListLayout(
             val book = books[index] ?: return@items
             val isSelected = selectedBooks.contains(book)
 
-            Box(
-                modifier = Modifier.animateItem()
-            ) {
-                BookListCard(
-                    book = book,
-                    openBook = openBook,
-                    updateLastOpened = {
-                        viewModel.updateBook(book.copy(lastOpened = System.currentTimeMillis()))
-                    },
-                    selected = isSelected,
-                    selectionMode = selectionMode,
-                    toggleSelection = {
-                        toggleSelection(it)
-                    },
-                    isLoading = isLoading,
-                    appPreferences = appPreferences,
-                    viewModel = viewModel
-                )
-            }
+            BookListCard(
+                book = book,
+                openBook = openBook,
+                updateLastOpened = {
+                    viewModel.updateBook(book.copy(lastOpened = System.currentTimeMillis()))
+                },
+                selected = isSelected,
+                selectionMode = selectionMode,
+                toggleSelection = {
+                    toggleSelection(it)
+                },
+                isLoading = isLoading,
+                appPreferences = appPreferences,
+                viewModel = viewModel,
+            )
         }
     }
 }
-
 
