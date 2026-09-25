@@ -190,4 +190,6 @@ dependencies {
     implementation(project(":bookread"))
     implementation(project(":base"))
     implementation(project(":text2speech"))
+
+    testImplementation(libs.junit)
 }
